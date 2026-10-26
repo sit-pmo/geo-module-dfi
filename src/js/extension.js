@@ -55,7 +55,18 @@ angular
             maximize: _lucideSvg('<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>'
                                 + '<path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>'),
             minimize: _lucideSvg('<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/>'
-                                + '<path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>')
+                                + '<path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>'),
+            // « map-pin » et « map-pin-off » (https://lucide.dev/icons/map-pin, https://lucide.dev/icons/map-pin-off)
+            mapPin: _lucideSvg('<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>'
+                             + '<circle cx="12" cy="10" r="3"/>'),
+            mapPinOff: _lucideSvg('<path d="M12.75 7.09a3 3 0 0 1 2.16 2.16"/>'
+                                + '<path d="M17.072 17.072c-1.634 2.17-3.527 3.912-4.471 4.727a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 1.432-4.568"/>'
+                                + '<path d="m2 2 20 20"/><path d="M8.475 2.818A8 8 0 0 1 20 10c0 1.183-.31 2.377-.81 3.533"/>'
+                                + '<path d="M9.13 9.13a3 3 0 0 0 3.74 3.74"/>'),
+            // « graph-hub » (https://lucide.dev/icons/graph-hub) : un nœud et ses enfants, comme une division de parcelle
+            graphHub: _lucideSvg('<circle cx="12" cy="7" r="4"/><circle cx="4" cy="19" r="2"/><circle cx="12" cy="19" r="2"/>'
+                               + '<circle cx="20" cy="19" r="2"/><path d="M8 7a4 4 0 0 0-4 4v6"/><path d="M12 11v6"/>'
+                               + '<path d="M16 7a4 4 0 0 1 4 4v6"/>')
         };
 
         geoApplication.executeWhenInitialized(function () {
@@ -170,9 +181,14 @@ angular
         function _buildTemplate() {
             return [
                 '<div class="geo-dfi" ng-class="{\'geo-dfi--full\': isFullscreen}">',
-                '  <div class="geo-dfi-bar">',
-                '    <h3 class="geo-dfi-title">{{ title }}</h3>',
+                '  <div class="geo-dfi-toolbar" role="toolbar" aria-label="Barre d\'outils">',
+                '    <span class="geo-dfi-toolbar-icon">' + _ICONS.graphHub + '</span>',
+                '    <span class="geo-dfi-title">{{ title }}</span>',
                 '    <div class="geo-dfi-bar-actions">',
+                '      <button type="button" class="geo-dfi-iconbtn" ng-if="locateEnabled && state.result" ng-click="locate(state.result.parsed)"',
+                '              ng-disabled="state.locating" title="Localiser sur la carte" aria-label="Localiser sur la carte">' + _ICONS.mapPin + '</button>',
+                '      <button type="button" class="geo-dfi-iconbtn" ng-if="state.located" ng-click="clearLocation()"',
+                '              title="Effacer le repérage" aria-label="Effacer le repérage">' + _ICONS.mapPinOff + '</button>',
                 '      <button type="button" class="geo-dfi-iconbtn" ng-class="{\'geo-dfi-iconbtn--on\': isFullscreen}" ng-click="toggleFullscreen()"',
                 '              title="{{ isFullscreen ? \'Quitter le plein écran (Échap)\' : \'Plein écran\' }}"',
                 '              aria-label="{{ isFullscreen ? \'Quitter le plein écran\' : \'Plein écran\' }}">',
@@ -181,6 +197,7 @@ angular
                 '      </button>',
                 '    </div>',
                 '  </div>',
+                '  <div class="geo-dfi-body">',
                 '  <form class="geo-dfi-form" ng-submit="search()" novalidate>',
                 '    <label for="geo-dfi-idu">Référence de la parcelle (IDU, 14 caractères)</label>',
                 '    <div class="geo-dfi-row">',
@@ -192,10 +209,7 @@ angular
                 '  <div class="geo-dfi-msg geo-dfi-msg--error" role="alert" ng-if="state.error">{{ state.error }}</div>',
                 '  <div class="geo-dfi-msg" ng-if="state.loading">Chargement des données…</div>',
                 '  <div class="geo-dfi-result" ng-if="state.result">',
-                '    <div class="geo-dfi-parcel">{{ state.result.label }} <span class="geo-dfi-idu">{{ state.result.idu }}</span>',
-                '      <button type="button" class="geo-dfi-btn" ng-if="locateEnabled" ng-click="locate(state.result.parsed)"',
-                '              ng-disabled="state.locating">Localiser sur la carte</button>',
-                '      <button type="button" class="geo-dfi-btn" ng-if="state.located" ng-click="clearLocation()">Effacer le repérage</button></div>',
+                '    <div class="geo-dfi-parcel">{{ state.result.label }} <span class="geo-dfi-idu">{{ state.result.idu }}</span></div>',
                 '    <div class="geo-dfi-msg" ng-if="state.locateMessage">{{ state.locateMessage }}</div>',
                 '    <div class="geo-dfi-msg" ng-if="!state.result.hasHistory">Aucune filiation connue dans les DFI pour cette parcelle. ',
                 '      L\'historique informatisé commence vers 1988-1990 et les remembrements n\'y figurent pas.</div>',
@@ -225,6 +239,7 @@ angular
                 '    Source : DGFiP, Documents de filiation informatisés (DFI){{ source.dateLabel ? \', mise à jour du \' + source.dateLabel : \'\' }},',
                 '    Licence Ouverte 2.0. Projet communautaire, non affilié à la DGFiP ni à Business Geografic.',
                 '    ' + changelog.linkHtml(),
+                '  </div>',
                 '  </div>',
                 '</div>'
             ].join('\n');
@@ -458,11 +473,13 @@ angular
             _markLayer = null; _markMap = null;
         }
 
+        function _nativeMap() { return $injector.get('acfMapService').getMapViewImmediate().getNativeMap(); }
+
         // Contour de la parcelle sur la carte native (OpenLayers fourni par GEO, voir module-development.md §1).
         function _highlight(feature) {
             _clearHighlight();
             var ol = window.ol;
-            var olMap = $injector.get('acfMapService').getMapViewImmediate().getNativeMap();
+            var olMap = _nativeMap();
             var features = new ol.format.GeoJSON().readFeatures(feature, {
                 dataProjection: 'EPSG:4326', featureProjection: olMap.getView().getProjection().getCode()
             });
@@ -479,17 +496,23 @@ angular
         }
 
         // Zoom sur la parcelle : le panneau recouvre la droite de la carte, la parcelle est centrée dans la partie découverte.
+        // L'emprise a le rapport largeur / hauteur de la carte (taille lue sur la carte native), sinon GEO la recentrerait.
         function _zoomTo(bbox) {
             var map = geoApplication.map;
             var mapCrs = (map.extent && map.extent.crs) || 'EPSG:3857';
-            var box = dfi.expandBbox(bbox, 0.75, 0.0003);     // marge d'au moins 0,0003° (environ 30 m)
+            var size = null;
+            try {
+                var px = _nativeMap().getSize();
+                if (px && px[0] > 0 && px[1] > 0) { size = { width: px[0], height: px[1] }; }
+            } catch (err) { console.warn('[geo-dfi] taille de la carte inconnue, centrage approché :', err); }
+            var box = dfi.expandBbox(bbox, 0.5, 0.0003);      // marge d'au moins 0,0003° (environ 30 m)
             var ext = [box.minX, box.minY, box.maxX, box.maxY];
             var crs = 'EPSG:4326';
             if (mapCrs !== 'EPSG:4326') {
                 try { ext = window.ol.proj.transformExtent(ext, 'EPSG:4326', mapCrs); crs = mapCrs; }
                 catch (err) { console.warn("[geo-dfi] changement de projection impossible, emprise donnée en EPSG:4326 :", err); }
             }
-            var v = dfi.extentForVisible({ minX: ext[0], minY: ext[1], maxX: ext[2], maxY: ext[3] }, (100 - _panelWidthPct) / 100);
+            var v = dfi.fitExtent({ minX: ext[0], minY: ext[1], maxX: ext[2], maxY: ext[3] }, size, (100 - _panelWidthPct) / 100);
             var r = map.setExtent({ minX: v.minX, maxX: v.maxX, minY: v.minY, maxY: v.maxY, crs: crs }, crs, { disablePadding: true });
             if (r && typeof r.subscribe === 'function') {
                 r.subscribe(function () {}, function (err) { console.error('[geo-dfi] setExtent a échoué :', err); });
@@ -512,13 +535,17 @@ angular
             var style = document.createElement('style');
             style.id = 'geo-dfi-styles';
             style.textContent = [
-                '.geo-dfi{padding:12px;font-size:13px;line-height:1.4;color:#222;background:#fff;height:100%;overflow:auto;box-sizing:border-box;}',
-                '.geo-dfi-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;}',
-                '.geo-dfi-title{margin:0;font-size:16px;}',
-                '.geo-dfi-bar-actions{display:flex;gap:6px;}',
-                '.geo-dfi-iconbtn{display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;',
+                // Barre d'outils fixe en haut, contenu qui défile seul en dessous (même principe que le panneau de Panoramax)
+                '.geo-dfi{display:flex;flex-direction:column;height:100%;font-size:13px;line-height:1.4;color:#222;background:#fff;overflow:hidden;box-sizing:border-box;}',
+                '.geo-dfi-toolbar{flex:none;display:flex;align-items:center;gap:8px;padding:6px 12px;background:#f4f6f9;border-bottom:1px solid #d5dae1;}',
+                '.geo-dfi-toolbar-icon{display:flex;color:#27487a;}',
+                '.geo-dfi-title{flex:1 1 auto;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}',
+                '.geo-dfi-body{flex:1 1 auto;min-height:0;overflow:auto;padding:12px;}',
+                '.geo-dfi-bar-actions{flex:none;display:flex;gap:6px;}',
+                '.geo-dfi-iconbtn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;',
                 '  border:1px solid #89898a;border-radius:50%;background:#fff;color:#333;cursor:pointer;}',
-                '.geo-dfi-iconbtn:hover{background:#eef2f8;}',
+                '.geo-dfi-iconbtn:hover:not([disabled]){background:#eef2f8;}',
+                '.geo-dfi-iconbtn[disabled]{opacity:.5;cursor:default;}',
                 '.geo-dfi-iconbtn--on{background:#27487a;border-color:#27487a;color:#fff;}',
                 '.geo-dfi-iconbtn--on:hover{background:#1d3a66;}',
                 '.geo-dfi-icon{width:18px;height:18px;display:block;}',

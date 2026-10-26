@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
     SUPPORTED_FORMAT, DfiError, parseIdu, parcelKey, splitKey, parcelLabel, formatDate, dataUrl, loadJson,
     checkIndex, loadIndex, loadCommune, buildLookup, describeLot, buildGraph, parcelSummary, layoutGraph,
-    DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, parseCadastre, loadParcel, formatArea
+    DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, fitExtent, parseCadastre, loadParcel, formatArea
 } from '../src/js/dfi-data.js';
 
 let failures = 0;
@@ -205,6 +205,25 @@ await test('geometryBbox, expandBbox, extentForVisible', () => {
     assert.ok(Math.abs((v.minX + 0.55 * 100 / 2) - 27.5) < 1e-9, 'centre de la zone découverte = centre de la parcelle');
     assert.deepEqual(extentForVisible({ minX: 0, minY: 0, maxX: 10, maxY: 10 }, 1), { minX: 0, maxX: 10, minY: 0, maxY: 10 });
     assert.deepEqual(extentForVisible({ minX: 0, minY: 0, maxX: 10, maxY: 10 }, 0), { minX: 0, maxX: 10, minY: 0, maxY: 10 }, 'fraction invalide ignorée');
+});
+await test('fitExtent : rapport de la carte et centrage dans la partie découverte', () => {
+    const near = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b)), msg + ' : ' + a + ' / ' + b);
+    for (const [bb, vp, v] of [
+        [{ minX: 0, minY: 0, maxX: 100, maxY: 100 }, { width: 1000, height: 500 }, 0.5],
+        [{ minX: 10, minY: -5, maxX: 40, maxY: 95 }, { width: 1745, height: 1100 }, 0.55],       // parcelle haute : limitée par la hauteur
+        [{ minX: 0, minY: 0, maxX: 300, maxY: 20 }, { width: 800, height: 600 }, 0.7],            // parcelle large : limitée par la largeur
+        [{ minX: 0, minY: 0, maxX: 10, maxY: 10 }, { width: 1000, height: 500 }, 1]]) {
+        const e = fitExtent(bb, vp, v);
+        near((e.maxX - e.minX) / (e.maxY - e.minY), vp.width / vp.height, 'rapport de la carte');
+        near(e.minX + (e.maxX - e.minX) * v / 2, (bb.minX + bb.maxX) / 2, 'centre horizontal de la partie découverte');
+        near((e.minY + e.maxY) / 2, (bb.minY + bb.maxY) / 2, 'centre vertical');
+        assert.ok(e.minX <= bb.minX + 1e-9 && e.minX + (e.maxX - e.minX) * v >= bb.maxX - 1e-9, 'la parcelle tient dans la partie découverte');
+        assert.ok(e.minY <= bb.minY + 1e-9 && e.maxY >= bb.maxY - 1e-9);
+    }
+    const e = fitExtent({ minX: 0, minY: 0, maxX: 100, maxY: 100 }, { width: 1000, height: 500 }, 0.5);
+    assert.deepEqual(e, { minX: 0, maxX: 200, minY: 0, maxY: 100 }, 'la parcelle occupe exactement la moitié gauche');
+    assert.deepEqual(fitExtent({ minX: 0, minY: 0, maxX: 55, maxY: 20 }, null, 0.55), extentForVisible({ minX: 0, minY: 0, maxX: 55, maxY: 20 }, 0.55), 'sans taille de carte : repli');
+    assert.deepEqual(fitExtent({ minX: 5, minY: 5, maxX: 5, maxY: 5 }, { width: 100, height: 100 }, 0.5), extentForVisible({ minX: 5, minY: 5, maxX: 5, maxY: 5 }, 0.5), 'emprise nulle : repli');
 });
 await test('parseCadastre : parcelle trouvée, absente, plusieurs préfixes, réponse invalide', () => {
     const ok = parseCadastre(collection(PARCEL), '38544000BI0498');

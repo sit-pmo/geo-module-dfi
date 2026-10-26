@@ -11,6 +11,14 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ## [Non publié]
 
+## [0.2.1] — 2026-10-26
+
+### Modifié
+
+- Vraie barre d'outils fixe en haut du panneau, avec des icônes : localiser la parcelle sur la carte, effacer le repérage, plein écran. Elle
+  ne défile plus avec le contenu, seul le contenu défile en dessous
+- Nouvelle image d'aperçu du module (un nœud et ses enfants, comme une division de parcelle), reprise dans la barre d'outils
+
 ## [0.2.0] — 2026-10-26
 
 ### Ajouté

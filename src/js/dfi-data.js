@@ -382,6 +382,27 @@ export function extentForVisible(b, visible) {
 }
 
 /**
+ * Emprise à donner à GEO pour que `b` soit au centre de la partie découverte de la carte ET que l'emprise ait exactement le
+ * rapport largeur / hauteur de la carte (`viewport`, en pixels). Sans ce rapport, GEO ajuste l'emprise sur la plus grande
+ * dimension puis la recentre sur toute la carte : le décalage destiné au panneau est alors annulé en partie.
+ * `visible` est la fraction de largeur découverte. Sans taille de carte connue, repli sur extentForVisible.
+ */
+export function fitExtent(b, viewport, visible) {
+    var w = viewport && viewport.width;
+    var h = viewport && viewport.height;
+    var v = visible > 0 && visible <= 1 ? visible : 1;
+    if (!(w > 0 && h > 0)) { return extentForVisible(b, v); }
+    var res = Math.max((b.maxX - b.minX) / (v * w), (b.maxY - b.minY) / h);   // unités de la carte par pixel
+    if (!(res > 0)) { return extentForVisible(b, v); }
+    var cx = (b.minX + b.maxX) / 2;
+    var cy = (b.minY + b.maxY) / 2;
+    var width = w * res;
+    var height = h * res;
+    var minX = cx - (v * width) / 2;
+    return { minX: minX, maxX: minX + width, minY: cy - height / 2, maxY: cy + height / 2 };
+}
+
+/**
  * Lit la réponse de l'API Carto. Retourne null si la parcelle n'existe pas (ou plus) au cadastre actuel, sinon
  * { feature, bbox, idu, contenance, commune }. Avec plusieurs parcelles, on garde celle dont l'IDU est celui attendu.
  */
