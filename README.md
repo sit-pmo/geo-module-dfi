@@ -27,12 +27,27 @@ de serveur ni de base de données. Il lit d'abord `index.json` et **refuse un fo
 |---|---|
 | Adresse des données | Dossier des fichiers JSON (par défaut les pages GitHub ci-dessus) |
 | Communes du territoire | Codes INSEE autorisés (vide : toutes les communes publiées) |
+| Bouton « Localiser sur la carte », adresse du service cadastral | Active la localisation (oui par défaut) ; service qui renvoie le contour d'une parcelle (par défaut l'API Carto de l'IGN) |
 | Nom et largeur de l'onglet | Libellé de l'onglet ; part de l'écran occupée par le panneau |
 
 Zones du gabarit : le module n'est proposé que pour la barre latérale droite (`widget.side.pro`, `widget.side`), jamais pour l'ensemble du gabarit
 (`global.pro`). Constaté sur GEO 4.5.0 : la zone « Lanceur de fonctionnalités » (bandeau de gauche) n'accepte pas le module, et un onglet de type
 `leftpanel` n'apparaît pas dans le gabarit Pro. Le module s'enregistre lui-même dans le panneau et ne lit qu'une configuration, même s'il a été
 déposé plusieurs fois (avertissement dans la console).
+
+## Localisation sur la carte
+
+Le bouton « Localiser sur la carte » (sur la parcelle cherchée et sur chaque parcelle du graphe) interroge l'**API Carto Cadastre de l'IGN**
+(`https://apicarto.ign.fr/api/cadastre/parcelle`, service public sans clé, cadastre Etalab) avec le code INSEE, la section, le numéro et le
+préfixe de section de la parcelle. Il zoome sur la parcelle, la centre dans la partie de la carte que le panneau ne recouvre pas, et dessine son
+contour sur une couche temporaire (« Effacer le repérage », ou fermeture du panneau, la retire).
+
+- **Confidentialité** : le service de l'IGN voit l'adresse IP du poste et la référence de la parcelle demandée (données publiques). Le bouton se
+  désactive dans les réglages ; l'adresse du service peut pointer vers un miroir interne.
+- **Disponibilité** : si le service n'est pas joignable (réseau, filtrage), un message l'indique ; le graphe reste utilisable.
+- **Parcelles disparues** : une parcelle divisée, réunie ou renumérotée n'existe plus au cadastre actuel : elle est signalée, pas localisée.
+  C'est le cas des parcelles « mères » d'un graphe ancien.
+- La recherche de parcelle de GEO n'est pas utilisée : appelée par programme, elle se bloque après sa première réponse (constaté sur GEO 4.5.0).
 
 ## Source et licence des données
 
@@ -62,6 +77,4 @@ est dans `src/js/extension.js`.
 
 - Le module lit les données avec `fetch` (et non `$http`, dont les intercepteurs de GEO pourraient joindre des en-têtes d'identification) :
   les données doivent être servies avec `access-control-allow-origin: *` (c'est le cas de GitHub Pages).
-- **Pas encore de localisation sur la carte** : un bouton « Localiser sur la carte », qui s'appuierait sur la recherche de parcelle du cadastre de
-  l'application, est à l'étude (les filtres de cette recherche sont liés en cascade et se bloquent quand on les fixe par programme).
 - Un graphe très ramifié (plusieurs centaines de parcelles liées) est large : défiler dans le cadre, ou passer en plein écran.

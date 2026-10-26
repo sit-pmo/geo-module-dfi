@@ -33,6 +33,10 @@ angular
         var _panelWidthPct = 45;       // largeur courante du panneau (100 en plein écran)
         var _panelWidthCfg = 45;       // largeur réglée dans le Générateur
         var _FULLSCREEN_BODY_CLASS = 'geo-dfi-fullscreen-active';
+        var _locateEnabled = true;     // bouton « Localiser sur la carte » (API Carto Cadastre de l'IGN)
+        var _cadastreUrl  = dfi.DEFAULT_CADASTRE_URL;
+        var _markLayer    = null;      // couche OpenLayers du contour de la parcelle repérée
+        var _markMap      = null;
         var _registered   = false;
         var _widgetId     = null;
         var _currentScope = null;
@@ -69,6 +73,8 @@ angular
 
             _dataUrl      = String(props.dataUrl || '').trim() || _DEFAULT_DATA_URL;
             _toolName     = String(props.toolName || '').trim() || _toolName;
+            _locateEnabled = props.locateEnabled !== false && props.locateEnabled !== 'false';
+            _cadastreUrl   = String(props.cadastreApiUrl || '').trim() || dfi.DEFAULT_CADASTRE_URL;
             var width     = parseFloat(props.panelWidth);
             _panelWidthPct = width >= 25 && width <= 80 ? width : _panelWidthPct;
             _panelWidthCfg = _panelWidthPct;
@@ -186,7 +192,11 @@ angular
                 '  <div class="geo-dfi-msg geo-dfi-msg--error" role="alert" ng-if="state.error">{{ state.error }}</div>',
                 '  <div class="geo-dfi-msg" ng-if="state.loading">Chargement des données…</div>',
                 '  <div class="geo-dfi-result" ng-if="state.result">',
-                '    <div class="geo-dfi-parcel">{{ state.result.label }} <span class="geo-dfi-idu">{{ state.result.idu }}</span></div>',
+                '    <div class="geo-dfi-parcel">{{ state.result.label }} <span class="geo-dfi-idu">{{ state.result.idu }}</span>',
+                '      <button type="button" class="geo-dfi-btn" ng-if="locateEnabled" ng-click="locate(state.result.parsed)"',
+                '              ng-disabled="state.locating">Localiser sur la carte</button>',
+                '      <button type="button" class="geo-dfi-btn" ng-if="state.located" ng-click="clearLocation()">Effacer le repérage</button></div>',
+                '    <div class="geo-dfi-msg" ng-if="state.locateMessage">{{ state.locateMessage }}</div>',
                 '    <div class="geo-dfi-msg" ng-if="!state.result.hasHistory">Aucune filiation connue dans les DFI pour cette parcelle. ',
                 '      L\'historique informatisé commence vers 1988-1990 et les remembrements n\'y figurent pas.</div>',
                 '    <ul class="geo-dfi-summary" ng-if="state.result.hasHistory">',
@@ -207,6 +217,8 @@ angular
                 '                ng-click="focusParcel(p.idu)">{{ p.label }}</button></div>',
                 '      <button type="button" class="geo-dfi-btn" ng-if="state.selected.parcel && !state.selected.current"',
                 '              ng-click="focusParcel(state.selected.parcel.idu)">Voir la filiation de cette parcelle</button>',
+                '      <button type="button" class="geo-dfi-btn" ng-if="state.selected.parcel && locateEnabled"',
+                '              ng-click="locate(state.selected.parcel)" ng-disabled="state.locating">Localiser sur la carte</button>',
                 '    </div>',
                 '  </div>',
                 '  <div class="geo-dfi-foot">',
@@ -223,9 +235,11 @@ angular
                 _currentScope = $scope;
                 $scope.title     = _toolName;
                 $scope.isFullscreen = false;
+                $scope.locateEnabled = _locateEnabled;
                 $scope.source    = _source;
                 $scope.state     = {
-                    idu: '', loading: false, error: '', result: null, selected: null
+                    idu: '', loading: false, error: '', result: null, selected: null,
+                    locating: false, locateMessage: '', located: false
                 };
                 var _layout = null;
                 var _lookup = null;
@@ -241,7 +255,7 @@ angular
 
                 $scope.search = function () {
                     var st = $scope.state;
-                    st.error = ''; st.selected = null;
+                    st.error = ''; st.locateMessage = ''; st.selected = null;
                     var parsed = dfi.parseIdu(st.idu);
                     if (!parsed) {
                         st.result = null;
@@ -327,6 +341,34 @@ angular
 
                 $scope.focusParcel = function (idu) { $scope.state.idu = idu; $scope.search(); };
 
+                // ── Localisation : l'API Carto Cadastre de l'IGN renvoie le contour de la parcelle ───────────────────
+                $scope.locate = function (p) {
+                    var st = $scope.state;
+                    var label = p.label || dfi.parcelLabel(p.key);
+                    st.locating = true; st.locateMessage = '';
+                    dfi.loadParcel(_fetch, _cadastreUrl, p).then(function (res) {
+                        _apply(function () {
+                            st.locating = false;
+                            if (!res) {
+                                st.locateMessage = label + " n'existe plus au cadastre actuel (parcelle divisée, réunie ou renumérotée) : "
+                                    + 'elle ne peut pas être localisée.';
+                                return;
+                            }
+                            if ($scope.isFullscreen) { _setFullscreen(false); }   // en plein écran la carte est masquée
+                            if (!_showOnMap(res)) {
+                                st.locateMessage = "Parcelle trouvée, mais la carte n'a pas pu être déplacée (voir la console du navigateur).";
+                                return;
+                            }
+                            st.located = true;
+                            st.locateMessage = [label, res.commune, dfi.formatArea(res.contenance)].filter(Boolean).join(' · ') + ' : repérée sur la carte.';
+                        });
+                    }).catch(function (err) {
+                        console.error('[geo-dfi] localisation :', err);
+                        _apply(function () { st.locating = false; st.locateMessage = _locateError(err); });
+                    });
+                };
+                $scope.clearLocation = function () { _clearHighlight(); $scope.state.located = false; $scope.state.locateMessage = ''; };
+
                 // Plein écran : le panneau prend toute la largeur ; les boutons de la carte (qui se replient et chevauchent
                 // ceux de gauche quand la carte est masquée) sont cachés tant que dure le plein écran. Échap en sort.
                 function _onEscape(e) {
@@ -345,6 +387,7 @@ angular
                 $scope.$on('$destroy', function () {
                     if ($scope.isFullscreen) { _panelWidthPct = _panelWidthCfg; document.removeEventListener('keydown', _onEscape, true); }
                     document.body.classList.remove(_FULLSCREEN_BODY_CLASS);
+                    _clearHighlight();
                     if (_currentScope === $scope) { _currentScope = null; }
                 });
             }];
@@ -399,6 +442,69 @@ angular
         }
 
         // ============================================================
+        // Carte : zoom sur la parcelle et contour
+        // ============================================================
+        function _locateError(err) {
+            switch (err && err.code) {
+                case 'network': return 'Le service cadastral (' + _hostOf(_cadastreUrl) + ") n'est pas accessible depuis ce poste (réseau ou accès bloqué).";
+                default:        return (err && err.message) || 'La localisation a échoué (voir la console du navigateur).';
+            }
+        }
+
+        function _clearHighlight() {
+            if (_markLayer && _markMap) {
+                try { _markMap.removeLayer(_markLayer); } catch (err) { console.warn('[geo-dfi] retrait du contour impossible :', err); }
+            }
+            _markLayer = null; _markMap = null;
+        }
+
+        // Contour de la parcelle sur la carte native (OpenLayers fourni par GEO, voir module-development.md §1).
+        function _highlight(feature) {
+            _clearHighlight();
+            var ol = window.ol;
+            var olMap = $injector.get('acfMapService').getMapViewImmediate().getNativeMap();
+            var features = new ol.format.GeoJSON().readFeatures(feature, {
+                dataProjection: 'EPSG:4326', featureProjection: olMap.getView().getProjection().getCode()
+            });
+            var layer = new ol.layer.Vector({
+                source: new ol.source.Vector({ features: features }),
+                style: new ol.style.Style({
+                    stroke: new ol.style.Stroke({ color: '#c76a00', width: 3 }),
+                    fill: new ol.style.Fill({ color: 'rgba(255, 200, 120, 0.25)' })
+                }),
+                zIndex: 1000   // au-dessus des fonds de plan et des couches thématiques
+            });
+            olMap.addLayer(layer);
+            _markLayer = layer; _markMap = olMap;
+        }
+
+        // Zoom sur la parcelle : le panneau recouvre la droite de la carte, la parcelle est centrée dans la partie découverte.
+        function _zoomTo(bbox) {
+            var map = geoApplication.map;
+            var mapCrs = (map.extent && map.extent.crs) || 'EPSG:3857';
+            var box = dfi.expandBbox(bbox, 0.75, 0.0003);     // marge d'au moins 0,0003° (environ 30 m)
+            var ext = [box.minX, box.minY, box.maxX, box.maxY];
+            var crs = 'EPSG:4326';
+            if (mapCrs !== 'EPSG:4326') {
+                try { ext = window.ol.proj.transformExtent(ext, 'EPSG:4326', mapCrs); crs = mapCrs; }
+                catch (err) { console.warn("[geo-dfi] changement de projection impossible, emprise donnée en EPSG:4326 :", err); }
+            }
+            var v = dfi.extentForVisible({ minX: ext[0], minY: ext[1], maxX: ext[2], maxY: ext[3] }, (100 - _panelWidthPct) / 100);
+            var r = map.setExtent({ minX: v.minX, maxX: v.maxX, minY: v.minY, maxY: v.maxY, crs: crs }, crs, { disablePadding: true });
+            if (r && typeof r.subscribe === 'function') {
+                r.subscribe(function () {}, function (err) { console.error('[geo-dfi] setExtent a échoué :', err); });
+            }
+        }
+
+        function _showOnMap(res) {
+            if (!geoApplication.map) { console.warn('[geo-dfi] carte GEO indisponible'); return false; }
+            var done = false;
+            try { _highlight(res.feature); done = true; } catch (err) { console.error('[geo-dfi] contour de la parcelle :', err); }
+            try { _zoomTo(res.bbox); done = true; } catch (err) { console.error('[geo-dfi] zoom sur la parcelle :', err); }
+            return done;
+        }
+
+        // ============================================================
         // Styles
         // ============================================================
         function _injectStyles() {
@@ -429,6 +535,7 @@ angular
                 '.geo-dfi-msg{margin:8px 0;padding:6px 8px;background:#f1f3f6;border-radius:4px;}',
                 '.geo-dfi-msg--error{background:#fdecea;color:#8a1c12;}',
                 '.geo-dfi-parcel{margin:10px 0 4px;font-size:15px;font-weight:700;}',
+                '.geo-dfi-parcel .geo-dfi-btn{margin-left:6px;font-size:12px;font-weight:400;}',
                 '.geo-dfi-idu{margin:0 6px;font-size:12px;font-weight:400;color:#555;}',
                 '.geo-dfi-summary{margin:6px 0 8px;padding-left:18px;}',
                 '.geo-dfi-graph{margin:8px 0;max-height:52vh;overflow:auto;border:1px solid #d5dae1;border-radius:4px;background:#fbfcfd;}',

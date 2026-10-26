@@ -331,3 +331,90 @@ export function layoutGraph(graph, labelOf, options) {
         height: rows.length * o.nodeH + (rows.length - 1) * o.gapY + 2 * o.margin
     };
 }
+
+// ─── Localisation d'une parcelle (API Carto Cadastre de l'IGN) ───────────────────────────────────────
+
+export var DEFAULT_CADASTRE_URL = 'https://apicarto.ign.fr/api/cadastre/parcelle';
+
+/**
+ * Adresse de l'API Carto pour une parcelle. `p` : { insee, prefix, section, number } (section sur 2 caractères,
+ * numéro sur 4). Le préfixe de section (`com_abs`) est toujours transmis : sans lui, une même section et un même
+ * numéro peuvent exister sous plusieurs préfixes (communes fusionnées) et l'API renvoie plusieurs parcelles.
+ */
+export function cadastreUrl(base, p) {
+    var enc = encodeURIComponent;
+    return String(base || DEFAULT_CADASTRE_URL).replace(/\?.*$/, '') + '?code_insee=' + enc(p.insee) + '&section=' + enc(p.section)
+        + '&numero=' + enc(p.number) + '&com_abs=' + enc(p.prefix || '000');
+}
+
+/** Emprise { minX, minY, maxX, maxY } d'une géométrie GeoJSON (points, lignes, polygones), ou null. */
+export function geometryBbox(geometry) {
+    var b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+    (function walk(coords) {
+        if (!Array.isArray(coords)) { return; }
+        if (typeof coords[0] === 'number') {
+            if (coords[0] < b.minX) { b.minX = coords[0]; } if (coords[0] > b.maxX) { b.maxX = coords[0]; }
+            if (coords[1] < b.minY) { b.minY = coords[1]; } if (coords[1] > b.maxY) { b.maxY = coords[1]; }
+            return;
+        }
+        coords.forEach(walk);
+    })(geometry && geometry.coordinates);
+    return isFinite(b.minX) ? b : null;
+}
+
+/** Élargit une emprise de `ratio` de sa plus grande dimension de chaque côté, avec une marge minimale `minMargin`. */
+export function expandBbox(b, ratio, minMargin) {
+    var m = Math.max(Math.max(b.maxX - b.minX, b.maxY - b.minY) * ratio, minMargin || 0);
+    return { minX: b.minX - m, minY: b.minY - m, maxX: b.maxX + m, maxY: b.maxY + m };
+}
+
+/**
+ * Emprise à donner à la carte pour que `b` apparaisse au centre de la partie visible, quand un panneau recouvre la
+ * droite de la carte : `visible` est la fraction de la largeur de la carte qui reste découverte (0 < visible <= 1).
+ * La hauteur est conservée ; la largeur est agrandie pour que `b` tienne dans la partie découverte.
+ */
+export function extentForVisible(b, visible) {
+    var v = visible > 0 && visible <= 1 ? visible : 1;
+    var cx = (b.minX + b.maxX) / 2;
+    var width = (b.maxX - b.minX) / v;
+    var minX = cx - (width * v) / 2;
+    return { minX: minX, maxX: minX + width, minY: b.minY, maxY: b.maxY };
+}
+
+/**
+ * Lit la réponse de l'API Carto. Retourne null si la parcelle n'existe pas (ou plus) au cadastre actuel, sinon
+ * { feature, bbox, idu, contenance, commune }. Avec plusieurs parcelles, on garde celle dont l'IDU est celui attendu.
+ */
+export function parseCadastre(json, expectedIdu) {
+    if (!json || json.type !== 'FeatureCollection' || !Array.isArray(json.features)) {
+        throw new DfiError('json', "Réponse inattendue du service cadastral.");
+    }
+    var wanted = String(expectedIdu || '').toUpperCase();
+    var list = json.features.filter(function (f) { return f && f.geometry; });
+    var feature = list.filter(function (f) { return f.properties && String(f.properties.idu || '').toUpperCase() === wanted; })[0]
+        || (list.length === 1 && !(list[0].properties && list[0].properties.idu) ? list[0] : null);
+    if (!feature) { return null; }
+    var bbox = geometryBbox(feature.geometry);
+    if (!bbox) { throw new DfiError('json', 'La parcelle renvoyée par le service cadastral n\'a pas de géométrie lisible.'); }
+    var props = feature.properties || {};
+    return { feature: feature, bbox: bbox, idu: props.idu || wanted, contenance: typeof props.contenance === 'number' ? props.contenance : null,
+             commune: props.nom_com || '' };
+}
+
+/** Interroge l'API Carto pour une parcelle ; même fetch sans identification que pour les données. */
+export function loadParcel(fetchFn, base, p) {
+    var url = cadastreUrl(base, p);
+    return fetchFn(url, { credentials: 'omit' }).then(function (response) {
+        if (!response.ok) { throw new DfiError('http', 'Le service cadastral a répondu ' + response.status + '.'); }
+        return response.json().catch(function () { throw new DfiError('json', 'Réponse illisible du service cadastral.'); });
+    }, function () {
+        throw new DfiError('network', 'Service cadastral inaccessible (réseau ou accès bloqué) : ' + url);
+    }).then(function (json) { return parseCadastre(json, p.insee + (p.prefix || '000') + p.section + p.number); });
+}
+
+/** « 14 000 m² » ou « 1,4 ha » à partir d'une contenance en mètres carrés. */
+export function formatArea(m2) {
+    if (typeof m2 !== 'number' || !isFinite(m2)) { return ''; }
+    if (m2 >= 10000) { return String(Math.round(m2 / 100) / 100).replace('.', ',') + ' ha'; }
+    return String(Math.round(m2)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' m²';
+}

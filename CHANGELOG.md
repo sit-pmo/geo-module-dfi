@@ -11,6 +11,17 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ## [Non publié]
 
+## [0.2.0] — 2026-10-26
+
+### Ajouté
+
+- Bouton **« Localiser sur la carte »** sur la parcelle cherchée et sur chaque parcelle du graphe : la carte zoome sur la
+  parcelle, qui est centrée dans la partie non recouverte par le panneau, et son contour est dessiné. « Effacer le repérage »
+  retire le contour. Une parcelle qui n'existe plus au cadastre (divisée, réunie ou renumérotée) est signalée au lieu d'être
+  localisée. En plein écran, le module repasse en panneau normal pour montrer la carte
+- Le contour vient de l'API Carto Cadastre de l'IGN (service public, sans inscription) : l'adresse IP du poste et la référence
+  de la parcelle lui sont transmises. Réglages : activer ou non le bouton, adresse du service
+
 ## [0.1.0] — 2026-10-26
 
 ### Ajouté

@@ -1,7 +1,7 @@
 {
   "name": "geo.dfi",
   "displayName": "Filiation des parcelles (DFI, DGFiP)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minGeoVersion": "3.2.0",
   "author": "fallamanche@vienne-condrieu-agglomeration.fr",
   "allowMultiple": false,
@@ -40,6 +40,30 @@
           "required": false,
           "type": "STRING",
           "defaultValue": ""
+        }
+      ]
+    },
+    {
+      "@type": "com.bg.functionality.canvas.configuration.ConfigurationGroup",
+      "name": "Localisation sur la carte",
+      "elements": [
+        {
+          "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
+          "name": "Bouton « Localiser sur la carte »",
+          "description": "Affiche le bouton qui zoome sur la parcelle et dessine son contour. Il interroge le service cadastral de l'IGN (API Carto) : l'adresse IP du poste et la référence de la parcelle lui sont transmises. Décocher pour désactiver.",
+          "key": "locateEnabled",
+          "required": false,
+          "type": "BOOLEAN",
+          "defaultValue": true
+        },
+        {
+          "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
+          "name": "Adresse du service cadastral",
+          "description": "Service qui renvoie le contour d'une parcelle (paramètres code_insee, section, numero, com_abs). Par défaut l'API Carto de l'IGN : https://apicarto.ign.fr/api/cadastre/parcelle",
+          "key": "cadastreApiUrl",
+          "required": false,
+          "type": "STRING",
+          "defaultValue": "https://apicarto.ign.fr/api/cadastre/parcelle"
         }
       ]
     },

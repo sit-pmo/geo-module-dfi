@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import {
     SUPPORTED_FORMAT, DfiError, parseIdu, parcelKey, splitKey, parcelLabel, formatDate, dataUrl, loadJson,
-    checkIndex, loadIndex, loadCommune, buildLookup, describeLot, buildGraph, parcelSummary, layoutGraph
+    checkIndex, loadIndex, loadCommune, buildLookup, describeLot, buildGraph, parcelSummary, layoutGraph,
+    DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, parseCadastre, loadParcel, formatArea
 } from '../src/js/dfi-data.js';
 
 let failures = 0;
@@ -176,6 +177,60 @@ await test('layoutGraph : un seul nœud', () => {
     const l = layoutGraph(buildGraph(lookup, 'ZZ0001'), () => 'ZZ 1');
     assert.equal(l.nodes.length, 1);
     assert.equal(l.paths.length, 0);
+});
+
+// ── Localisation (API Carto Cadastre de l'IGN) : réponse de la forme réelle (MultiPolygon EPSG:4326) ──────────
+const PARCEL = { type: 'Feature', id: 'parcelle.65018364', geometry: { type: 'MultiPolygon', coordinates: [[[[4.8636, 45.5130], [4.8650, 45.5130], [4.8650, 45.5142], [4.8636, 45.5142], [4.8636, 45.5130]]]] },
+    properties: { numero: '0498', section: 'BI', code_dep: '38', nom_com: 'Vienne', code_com: '544', com_abs: '000', idu: '38544000BI0498', contenance: 14000, code_insee: '38544' } };
+const collection = (...features) => ({ type: 'FeatureCollection', features, crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:EPSG::4326' } } });
+const P498 = { insee: '38544', prefix: '000', section: 'BI', number: '0498' };
+
+await test('cadastreUrl : paramètres, préfixe toujours transmis, base personnalisée', () => {
+    assert.equal(cadastreUrl(undefined, P498), DEFAULT_CADASTRE_URL + '?code_insee=38544&section=BI&numero=0498&com_abs=000');
+    assert.equal(cadastreUrl('https://miroir.exemple.fr/parcelle?x=1', { insee: '38001', prefix: '028', section: '0E', number: '0374' }),
+        'https://miroir.exemple.fr/parcelle?code_insee=38001&section=0E&numero=0374&com_abs=028');
+    assert.match(cadastreUrl(DEFAULT_CADASTRE_URL, { insee: '38001', section: '0A', number: '0524' }), /com_abs=000$/, 'préfixe absent : 000');
+});
+await test('geometryBbox, expandBbox, extentForVisible', () => {
+    assert.deepEqual(geometryBbox(PARCEL.geometry), { minX: 4.8636, minY: 45.513, maxX: 4.865, maxY: 45.5142 });
+    assert.deepEqual(geometryBbox({ type: 'Point', coordinates: [5, 45] }), { minX: 5, minY: 45, maxX: 5, maxY: 45 });
+    assert.equal(geometryBbox({ type: 'Polygon', coordinates: [] }), null);
+    assert.equal(geometryBbox(null), null);
+    const e = expandBbox({ minX: 0, minY: 0, maxX: 10, maxY: 4 }, 0.5, 0);
+    assert.deepEqual(e, { minX: -5, minY: -5, maxX: 15, maxY: 9 });
+    assert.deepEqual(expandBbox({ minX: 5, minY: 5, maxX: 5, maxY: 5 }, 0.5, 60), { minX: -55, minY: -55, maxX: 65, maxY: 65 });
+    // panneau recouvrant 45 % de la carte : l'emprise s'agrandit pour que la parcelle soit au centre des 55 % découverts
+    const v = extentForVisible({ minX: 0, minY: 0, maxX: 55, maxY: 20 }, 0.55);
+    assert.ok(Math.abs((v.maxX - v.minX) - 100) < 1e-9); assert.equal(v.minY, 0); assert.equal(v.maxY, 20);
+    assert.ok(Math.abs((v.minX + 0.55 * 100 / 2) - 27.5) < 1e-9, 'centre de la zone découverte = centre de la parcelle');
+    assert.deepEqual(extentForVisible({ minX: 0, minY: 0, maxX: 10, maxY: 10 }, 1), { minX: 0, maxX: 10, minY: 0, maxY: 10 });
+    assert.deepEqual(extentForVisible({ minX: 0, minY: 0, maxX: 10, maxY: 10 }, 0), { minX: 0, maxX: 10, minY: 0, maxY: 10 }, 'fraction invalide ignorée');
+});
+await test('parseCadastre : parcelle trouvée, absente, plusieurs préfixes, réponse invalide', () => {
+    const ok = parseCadastre(collection(PARCEL), '38544000BI0498');
+    assert.equal(ok.idu, '38544000BI0498'); assert.equal(ok.contenance, 14000); assert.equal(ok.commune, 'Vienne'); assert.equal(ok.bbox.minX, 4.8636);
+    assert.equal(parseCadastre(collection(), '38544000BI0457'), null, 'parcelle disparue : aucun résultat');
+    const other = { ...PARCEL, properties: { ...PARCEL.properties, idu: '38544165BI0498', com_abs: '165' } };
+    assert.equal(parseCadastre(collection(other, PARCEL), '38544000BI0498').idu, '38544000BI0498', 'on garde le bon IDU');
+    assert.equal(parseCadastre(collection(other), '38544000BI0498'), null, 'un seul résultat mais un autre IDU : refusé');
+    assert.equal(parseCadastre(collection({ type: 'Feature', geometry: PARCEL.geometry, properties: {} }), 'X').idu, 'X', 'sans IDU, résultat unique accepté');
+    assert.throws(() => parseCadastre({ code: 400 }, 'x'), (e) => e instanceof DfiError && e.code === 'json');
+    assert.throws(() => parseCadastre(null, 'x'), (e) => e.code === 'json');
+    assert.throws(() => parseCadastre(collection({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [] }, properties: { idu: 'X' } }), 'X'), (e) => e.code === 'json');
+});
+await test('loadParcel : appel sans identification, parcelle absente, erreurs', async () => {
+    let seen;
+    const fetchFn = (url, o) => { seen = [url, o]; return Promise.resolve(response(200, collection(PARCEL))); };
+    const r = await loadParcel(fetchFn, undefined, P498);
+    assert.equal(r.idu, '38544000BI0498'); assert.equal(seen[1].credentials, 'omit'); assert.match(seen[0], /com_abs=000$/);
+    assert.equal(await loadParcel(() => Promise.resolve(response(200, collection())), undefined, P498), null);
+    await assert.rejects(loadParcel(() => Promise.resolve(response(400, {})), undefined, P498), (e) => e.code === 'http');
+    await assert.rejects(loadParcel(() => Promise.resolve(response(200, undefined)), undefined, P498), (e) => e.code === 'json');
+    await assert.rejects(loadParcel(() => Promise.reject(new TypeError('x')), undefined, P498), (e) => e.code === 'network');
+});
+await test('formatArea', () => {
+    assert.equal(formatArea(14000), '1,4 ha'); assert.equal(formatArea(10000), '1 ha'); assert.equal(formatArea(987), '987 m²');
+    assert.equal(formatArea(1234), '1 234 m²'); assert.equal(formatArea(null), ''); assert.equal(formatArea(NaN), '');
 });
 
 if (failures) { console.error('\n' + failures + ' test(s) en échec'); process.exit(1); }
