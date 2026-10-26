@@ -11,6 +11,23 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ## [Non publié]
 
+## [0.3.0] — 2026-10-26
+
+### Ajouté
+
+- **Recherche en trois listes liées : Commune → Section → Numéro.** On tape le nom de la commune (ou son code INSEE) et une liste de
+  suggestions apparaît ; la liste des sections est alors celle de la commune choisie, puis les numéros de la section sont proposés pendant
+  la saisie. Plus besoin de connaître la référence cadastrale (IDU) de la parcelle
+- La recherche suit la parcelle affichée : un clic sur une autre parcelle du graphe met à jour la commune, la section et le numéro
+- Les noms des communes viennent des données (publiées avec l'intégrateur 0.2.0 ou plus récent) ; avec des données plus anciennes, le code
+  INSEE s'affiche à la place du nom
+
+### Modifié
+
+- La saisie directe de l'IDU est conservée, sous « Saisir une référence cadastrale (IDU) », pour coller une référence venue d'un autre outil
+- Les listes ne contiennent que les parcelles qui apparaissent dans un document de filiation ; une parcelle absente se saisit quand même
+  (le module répond alors qu'aucune filiation n'est connue)
+
 ## [0.2.2] — 2026-10-26
 
 ### Modifié

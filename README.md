@@ -7,8 +7,8 @@ ce qu'elle est devenue, sous forme de graphe (parcelles mères → opération �
 
 ## Fonctionnement
 
-Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on saisit la référence de la parcelle (IDU, 14 caractères, par exemple
-`38544000BI0498`) ; le module affiche le graphe de ses ancêtres et de ses descendants. Chaque opération (division, réunion,
+Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on choisit la parcelle par **commune → section → numéro** (listes liées, alimentées par les données ; la
+référence cadastrale IDU de 14 caractères, par exemple `38544000BI0498`, reste saisissable en repli) ; le module affiche le graphe de ses ancêtres et de ses descendants. Chaque opération (division, réunion,
 lotissement, remaniement…) indique sa date et la nature du document (arpentage, croquis de conservation…). Un clic sur une
 parcelle ou une opération en donne le détail et permet de suivre la filiation d'une autre parcelle du graphe.
 

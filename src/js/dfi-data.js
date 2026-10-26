@@ -127,6 +127,90 @@ export function buildLookup(communeData) {
     return { insee: communeData.insee, lots: communeData.lots, asMother: asMother, asDaughter: asDaughter };
 }
 
+// ─── Sélection commune -> section -> numéro ──────────────────────────────────────────────────────────
+
+function _collator() { return typeof Intl !== 'undefined' && Intl.Collator ? new Intl.Collator('fr', { sensitivity: 'base', numeric: true }) : null; }
+
+/**
+ * Communes proposées : [{ insee, name, label }] triées par nom. `allowed` : { insee: true } ou null (toutes les communes publiées).
+ * Sans nom dans l'index (données d'une version antérieure de l'intégrateur), le code INSEE tient lieu de libellé.
+ */
+export function communeOptions(index, allowed) {
+    var list = Object.keys(index.communes).filter(function (insee) { return !allowed || allowed[insee]; }).map(function (insee) {
+        var name = String(index.communes[insee].nom || '');
+        return { insee: insee, name: name, label: name ? name + ' (' + insee + ')' : insee };
+    });
+    var collator = _collator();
+    list.sort(function (a, b) {
+        if (!a.name !== !b.name) { return a.name ? -1 : 1; }   // les communes sans nom en dernier
+        var r = collator ? collator.compare(a.name || a.insee, b.name || b.insee) : (a.name || a.insee).localeCompare(b.name || b.insee);
+        return r || (a.insee < b.insee ? -1 : 1);
+    });
+    return list;
+}
+
+/**
+ * Retrouve une commune d'après ce que l'utilisateur a saisi : libellé exact de la liste, code INSEE, ou nom unique (sans casse ni
+ * accents). Retourne null si rien ne correspond ou si le nom est ambigu.
+ */
+export function resolveCommune(options, text) {
+    var wanted = String(text == null ? '' : text).trim();
+    if (!wanted) { return null; }
+    var upper = wanted.toUpperCase();
+    var found = options.filter(function (o) { return o.label === wanted || o.insee === upper; });
+    if (found.length === 1) { return found[0]; }
+    var fold = function (s) { return s.normalize ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[-'’\s]+/g, ' ') : s.toLowerCase(); };
+    var key = fold(wanted);
+    found = options.filter(function (o) { return o.name && fold(o.name) === key; });
+    return found.length === 1 ? found[0] : null;
+}
+
+function _allKeys(lookup) {
+    var seen = {};
+    Object.keys(lookup.asMother).concat(Object.keys(lookup.asDaughter)).forEach(function (k) { seen[k] = true; });
+    return Object.keys(seen);
+}
+
+/**
+ * Sections de la commune qui figurent dans un DFI : [{ value, prefix, section, label, count }]. `value` = préfixe + section
+ * (« 000AH »), clé stable pour une liste déroulante ; `label` = « AH » (« 014 AH » avec un préfixe).
+ */
+export function sectionOptions(lookup) {
+    var groups = {};
+    _allKeys(lookup).forEach(function (key) {
+        var p = splitKey(key, lookup.insee);
+        var value = p.prefix + p.section;
+        var g = groups[value] || (groups[value] = { value: value, prefix: p.prefix, section: p.section,
+            label: (p.prefix !== '000' ? p.prefix + ' ' : '') + p.section.replace(/^0/, ''), count: 0 });
+        g.count++;
+    });
+    return Object.keys(groups).sort().map(function (v) { return groups[v]; });
+}
+
+/** Numéros (4 chiffres) d'une section, d'après sa valeur « préfixe + section » : triés, sans doublon. */
+export function numberOptions(lookup, sectionValue) {
+    var out = [];
+    _allKeys(lookup).forEach(function (key) {
+        var p = splitKey(key, lookup.insee);
+        if (p.prefix + p.section === sectionValue) { out.push(p.number); }
+    });
+    return out.sort();
+}
+
+/** Numéro saisi (« 498 », « 0498 ») -> 4 chiffres, ou null s'il n'est pas valide. */
+export function normalizeNumber(text) {
+    var digits = String(text == null ? '' : text).trim();
+    if (!/^\d{1,4}$/.test(digits)) { return null; }
+    return ('0000' + digits).slice(-4);
+}
+
+/** IDU d'une sélection (commune, valeur de section « préfixe + section », numéro saisi) ou null si incomplète ou invalide. */
+export function selectionIdu(insee, sectionValue, numberText) {
+    var number = normalizeNumber(numberText);
+    if (!insee || !sectionValue || sectionValue.length !== 5 || !number) { return null; }
+    return insee + sectionValue + number;
+}
+
 // ─── Lots ────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Décrit un lot en français : type d'opération déduit du nombre de mères et de filles, et nature du DFI. */

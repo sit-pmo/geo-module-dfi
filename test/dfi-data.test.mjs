@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
     SUPPORTED_FORMAT, DfiError, parseIdu, parcelKey, splitKey, parcelLabel, formatDate, dataUrl, loadJson,
     checkIndex, loadIndex, loadCommune, buildLookup, describeLot, buildGraph, parcelSummary, layoutGraph,
-    DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, fitExtent, parseCadastre, loadParcel, formatArea
+    DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, fitExtent, parseCadastre, loadParcel, formatArea,
+    communeOptions, resolveCommune, sectionOptions, numberOptions, normalizeNumber, selectionIdu
 } from '../src/js/dfi-data.js';
 
 let failures = 0;
@@ -250,6 +251,43 @@ await test('loadParcel : appel sans identification, parcelle absente, erreurs', 
 await test('formatArea', () => {
     assert.equal(formatArea(14000), '1,4 ha'); assert.equal(formatArea(10000), '1 ha'); assert.equal(formatArea(987), '987 m²');
     assert.equal(formatArea(1234), '1 234 m²'); assert.equal(formatArea(null), ''); assert.equal(formatArea(NaN), '');
+});
+
+await test('communeOptions : tri par nom, libellé, filtre du territoire, index sans noms', () => {
+    const index = { communes: { '38544': { lots: 1, nom: 'Vienne' }, '69007': { lots: 1, nom: 'Ampuis' }, '38087': { lots: 1, nom: 'Chasse-sur-Rhône' },
+                                '2A004': { lots: 1, nom: 'Ajaccio' }, '38999': { lots: 1 }, '69381': { lots: 1, nom: 'Lyon 1er Arrondissement' } } };
+    const all = communeOptions(index, null);
+    assert.equal(all[all.length - 1].insee, '38999', 'sans nom : en dernier')
+    assert.deepEqual(all.slice(0, 3).map((o) => o.name), ['Ajaccio', 'Ampuis', 'Chasse-sur-Rhône']);
+    assert.equal(all.find((o) => o.insee === '38544').label, 'Vienne (38544)');
+    assert.equal(all.find((o) => o.insee === '38999').label, '38999', 'sans nom : le code tient lieu de libellé');
+    assert.deepEqual(communeOptions(index, { '38544': true, '69007': true, '00000': true }).map((o) => o.insee), ['69007', '38544']);
+});
+await test('resolveCommune : libellé, code INSEE, nom sans accents, ambiguïté', () => {
+    const index = { communes: { '38544': { lots: 1, nom: 'Vienne' }, '86194': { lots: 1, nom: 'Vienne' }, '69064': { lots: 1, nom: 'Condrieu' },
+                                '38087': { lots: 1, nom: 'Chasse-sur-Rhône' }, '38999': { lots: 1 } } };
+    const o = communeOptions(index, null);
+    assert.equal(resolveCommune(o, 'Condrieu (69064)').insee, '69064');
+    assert.equal(resolveCommune(o, '69064').insee, '69064'); assert.equal(resolveCommune(o, ' condrieu ').insee, '69064');
+    assert.equal(resolveCommune(o, 'chasse sur rhone').insee, '38087', 'sans accents ni tirets');
+    assert.equal(resolveCommune(o, 'Vienne'), null, 'deux communes de ce nom : ambigu'); assert.equal(resolveCommune(o, 'Vienne (86194)').insee, '86194');
+    assert.equal(resolveCommune(o, '38999').insee, '38999'); assert.equal(resolveCommune(o, ''), null); assert.equal(resolveCommune(o, 'Lyon'), null);
+});
+await test('sectionOptions / numberOptions : listes tirées des parcelles des DFI', () => {
+    const lk = buildLookup({ insee: '38544', lots: [
+        ['a', '1', 1, '1990-03-01', ['AH0065', 'AH0072'], ['AH0261']],
+        ['b', '1', 7, '2001-05-10', ['AH0261', '0A0010'], ['AB0007', '014AH0003']],
+        ['c', '1', 2, '2010-01-05', ['AB0007'], []] ] });
+    assert.deepEqual(sectionOptions(lk).map((s) => [s.value, s.label, s.count]), [['0000A', 'A', 1], ['000AB', 'AB', 1], ['000AH', 'AH', 3], ['014AH', '014 AH', 1]]);
+    assert.deepEqual(numberOptions(lk, '000AH'), ['0065', '0072', '0261']); assert.deepEqual(numberOptions(lk, '014AH'), ['0003']);
+    assert.deepEqual(numberOptions(lk, '000ZZ'), []);
+});
+await test('normalizeNumber / selectionIdu', () => {
+    assert.equal(normalizeNumber('498'), '0498'); assert.equal(normalizeNumber(' 0498 '), '0498'); assert.equal(normalizeNumber('7'), '0007');
+    assert.equal(normalizeNumber('12345'), null); assert.equal(normalizeNumber('4a'), null); assert.equal(normalizeNumber(''), null);
+    assert.equal(selectionIdu('38544', '000BI', '498'), '38544000BI0498'); assert.equal(selectionIdu('38544', '000BI', ''), null);
+    assert.equal(selectionIdu('', '000BI', '498'), null); assert.equal(selectionIdu('38544', 'BI', '498'), null);
+    assert.equal(parseIdu(selectionIdu('2A004', '000AB', '1')).key, 'AB0001', "l'IDU produit est valide");
 });
 
 if (failures) { console.error('\n' + failures + ' test(s) en échec'); process.exit(1); }
