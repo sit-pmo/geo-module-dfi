@@ -7,7 +7,7 @@ ce qu'elle est devenue, sous forme de graphe (parcelles mères → opération �
 
 ## Fonctionnement
 
-Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (bouton **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on saisit la référence de la parcelle (IDU, 14 caractères, par exemple
+Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on saisit la référence de la parcelle (IDU, 14 caractères, par exemple
 `38544000BI0498`) ; le module affiche le graphe de ses ancêtres et de ses descendants. Chaque opération (division, réunion,
 lotissement, remaniement…) indique sa date et la nature du document (arpentage, croquis de conservation…). Un clic sur une
 parcelle ou une opération en donne le détail et permet de suivre la filiation d'une autre parcelle du graphe.
@@ -39,7 +39,7 @@ déposé plusieurs fois (avertissement dans la console).
 
 Le bouton « Localiser sur la carte » (sur la parcelle cherchée et sur chaque parcelle du graphe) interroge l'**API Carto Cadastre de l'IGN**
 (`https://apicarto.ign.fr/api/cadastre/parcelle`, service public sans clé, cadastre Etalab) avec le code INSEE, la section, le numéro et le
-préfixe de section de la parcelle. Il zoome sur la parcelle, la centre dans la partie de la carte que le panneau ne recouvre pas, et dessine son
+préfixe de section de la parcelle. Il zoome sur la parcelle (par la vue OpenLayers native, avec un recouvrement du panneau mesuré sur la page), la centre dans la partie de la carte que le panneau ne recouvre pas, et dessine son
 contour sur une couche temporaire (« Effacer le repérage », ou fermeture du panneau, la retire).
 
 - **Confidentialité** : le service de l'IGN voit l'adresse IP du poste et la référence de la parcelle demandée (données publiques). Le bouton se

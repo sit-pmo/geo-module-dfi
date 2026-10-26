@@ -11,6 +11,18 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ## [Non publié]
 
+## [0.2.2] — 2026-10-26
+
+### Modifié
+
+- Le bouton **« Nouveautés »** passe dans la barre d'outils (icône étincelles, avec un point rouge tant que la dernière version n'a pas été
+  lue) ; le lien « v… · Nouveautés » en bas du panneau disparaît
+
+### Corrigé
+
+- « Localiser sur la carte » : la parcelle est cadrée dans la partie de la carte que le panneau ne recouvre pas, et occupe davantage de place.
+  Le module mesure ce que le panneau recouvre réellement, qu'il soit étroit, large ou que GEO ait rétréci la carte
+
 ## [0.2.1] — 2026-10-26
 
 ### Modifié

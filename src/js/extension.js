@@ -20,7 +20,7 @@ angular
 
         var changelog = createChangelog({
             name: pluginConf.name, title: pluginConf.displayName, version: pluginConf.version,
-            markdown: changelogMd, prefix: 'geo-dfi'
+            markdown: changelogMd, prefix: 'geo-dfi', zIndex: 1000000001
         });
 
         // ============================================================
@@ -37,6 +37,7 @@ angular
         var _cadastreUrl  = dfi.DEFAULT_CADASTRE_URL;
         var _markLayer    = null;      // couche OpenLayers du contour de la parcelle repérée
         var _markMap      = null;
+        var _panelEl      = null;      // élément du panneau, pour mesurer ce qu'il recouvre de la carte
         var _registered   = false;
         var _widgetId     = null;
         var _currentScope = null;
@@ -63,6 +64,9 @@ angular
                                 + '<path d="M17.072 17.072c-1.634 2.17-3.527 3.912-4.471 4.727a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 1.432-4.568"/>'
                                 + '<path d="m2 2 20 20"/><path d="M8.475 2.818A8 8 0 0 1 20 10c0 1.183-.31 2.377-.81 3.533"/>'
                                 + '<path d="M9.13 9.13a3 3 0 0 0 3.74 3.74"/>'),
+            // « sparkles » (https://lucide.dev/icons/sparkles) : nouveautés
+            sparkles: _lucideSvg('<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/>'
+                               + '<path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>'),
             // « graph-hub » (https://lucide.dev/icons/graph-hub) : un nœud et ses enfants, comme une division de parcelle
             graphHub: _lucideSvg('<circle cx="12" cy="7" r="4"/><circle cx="4" cy="19" r="2"/><circle cx="12" cy="19" r="2"/>'
                                + '<circle cx="20" cy="19" r="2"/><path d="M8 7a4 4 0 0 0-4 4v6"/><path d="M12 11v6"/>'
@@ -189,6 +193,10 @@ angular
                 '              ng-disabled="state.locating" title="Localiser sur la carte" aria-label="Localiser sur la carte">' + _ICONS.mapPin + '</button>',
                 '      <button type="button" class="geo-dfi-iconbtn" ng-if="state.located" ng-click="clearLocation()"',
                 '              title="Effacer le repérage" aria-label="Effacer le repérage">' + _ICONS.mapPinOff + '</button>',
+                '      <button type="button" class="geo-dfi-iconbtn" ng-click="openChangelog()" title="{{ changelogTitle }}" aria-label="Nouveautés du module">',
+                '        ' + _ICONS.sparkles,
+                '        <i class="geo-dfi-dot-new" ng-if="changelogNew()"></i>',
+                '      </button>',
                 '      <button type="button" class="geo-dfi-iconbtn" ng-class="{\'geo-dfi-iconbtn--on\': isFullscreen}" ng-click="toggleFullscreen()"',
                 '              title="{{ isFullscreen ? \'Quitter le plein écran (Échap)\' : \'Plein écran\' }}"',
                 '              aria-label="{{ isFullscreen ? \'Quitter le plein écran\' : \'Plein écran\' }}">',
@@ -238,7 +246,6 @@ angular
                 '  <div class="geo-dfi-foot">',
                 '    Source : DGFiP, Documents de filiation informatisés (DFI){{ source.dateLabel ? \', mise à jour du \' + source.dateLabel : \'\' }},',
                 '    Licence Ouverte 2.0. Projet communautaire, non affilié à la DGFiP ni à Business Geografic.',
-                '    ' + changelog.linkHtml(),
                 '  </div>',
                 '  </div>',
                 '</div>'
@@ -260,11 +267,12 @@ angular
                 var _lookup = null;
                 var _selectedId = null;
 
-                // Lien « Nouveautés » : clic délégué (gabarit en HTML brut) ; repère « nouveau » remis à jour.
-                $element[0].addEventListener('click', function (e) {
-                    if (e.target.closest && e.target.closest('[data-changelog]')) { changelog.open(); }
-                });
-                $timeout(function () { changelog.refresh(); });
+                _panelEl = $element[0];
+
+                // Bouton « Nouveautés » de la barre d'outils : le point rouge disparaît une fois le journal ouvert.
+                $scope.changelogTitle = 'Nouveautés du module' + (changelog.current ? ' (v' + changelog.current + ')' : '');
+                $scope.changelogNew   = function () { return changelog.hasNew(); };
+                $scope.openChangelog  = function () { changelog.open(); };
 
                 function _apply(fn) { $timeout(fn, 0); }   // les promesses natives sont hors du cycle Angular
 
@@ -369,13 +377,18 @@ angular
                                     + 'elle ne peut pas être localisée.';
                                 return;
                             }
-                            if ($scope.isFullscreen) { _setFullscreen(false); }   // en plein écran la carte est masquée
-                            if (!_showOnMap(res)) {
-                                st.locateMessage = "Parcelle trouvée, mais la carte n'a pas pu être déplacée (voir la console du navigateur).";
-                                return;
-                            }
-                            st.located = true;
-                            st.locateMessage = [label, res.commune, dfi.formatArea(res.contenance)].filter(Boolean).join(' · ') + ' : repérée sur la carte.';
+                            // En plein écran la carte est masquée : on en sort, puis on attend que le panneau ait retrouvé sa largeur
+                            // (setPanelSize se joue à 0, 100 et 300 ms) avant de mesurer ce qu'il recouvre.
+                            var wait = 0;
+                            if ($scope.isFullscreen) { _setFullscreen(false); wait = 450; }
+                            $timeout(function () {
+                                if (!_showOnMap(res)) {
+                                    st.locateMessage = "Parcelle trouvée, mais la carte n'a pas pu être déplacée (voir la console du navigateur).";
+                                    return;
+                                }
+                                st.located = true;
+                                st.locateMessage = [label, res.commune, dfi.formatArea(res.contenance)].filter(Boolean).join(' · ') + ' : repérée sur la carte.';
+                            }, wait);
                         });
                     }).catch(function (err) {
                         console.error('[geo-dfi] localisation :', err);
@@ -403,7 +416,7 @@ angular
                     if ($scope.isFullscreen) { _panelWidthPct = _panelWidthCfg; document.removeEventListener('keydown', _onEscape, true); }
                     document.body.classList.remove(_FULLSCREEN_BODY_CLASS);
                     _clearHighlight();
-                    if (_currentScope === $scope) { _currentScope = null; }
+                    if (_currentScope === $scope) { _currentScope = null; _panelEl = null; }
                 });
             }];
         }
@@ -495,9 +508,36 @@ angular
             _markLayer = layer; _markMap = olMap;
         }
 
-        // Zoom sur la parcelle : le panneau recouvre la droite de la carte, la parcelle est centrée dans la partie découverte.
-        // L'emprise a le rapport largeur / hauteur de la carte (taille lue sur la carte native), sinon GEO la recentrerait.
+        // Cadrage de la parcelle par la vue OpenLayers native. `setExtent` de GEO n'est pas utilisable ici : il applique ses propres
+        // paddings de canvas (« FitOptions.disablePadding ») et le cadrage obtenu ne dépendait pas de l'emprise donnée (constaté sur GEO 4.5.0).
+        // On mesure sur la page ce que le panneau recouvre réellement de la carte, qu'il la recouvre ou qu'il la rétrécisse.
+        function _coveredRight(olMap) {
+            var panel = _panelEl && (_panelEl.querySelector('.geo-dfi') || _panelEl);
+            var target = olMap.getTargetElement && olMap.getTargetElement();
+            if (!panel || !target) { return 0; }
+            var pr = panel.getBoundingClientRect();
+            var mr = target.getBoundingClientRect();
+            var covered = Math.round(mr.right - pr.left);
+            return covered > 0 && covered < mr.width * 0.9 ? covered : 0;
+        }
+
+        function _zoomNative(bbox) {
+            var olMap = _nativeMap();
+            var view = olMap.getView();
+            var viewCrs = view.getProjection().getCode();
+            var box = dfi.expandBbox(bbox, 0.3, 0.0003);      // marge de 30 %, d'au moins 0,0003° (environ 30 m)
+            var ext = [box.minX, box.minY, box.maxX, box.maxY];
+            if (viewCrs !== 'EPSG:4326') { ext = window.ol.proj.transformExtent(ext, 'EPSG:4326', viewCrs); }
+            var covered = _coveredRight(olMap);
+            console.info('[geo-dfi] cadrage : carte ' + _safeSize(olMap) + ' px, panneau recouvrant ' + covered + ' px à droite, projection ' + viewCrs);
+            view.fit(ext, { size: olMap.getSize(), padding: [20, covered + 20, 20, 20], maxZoom: 20, duration: 300 });
+        }
+        function _safeSize(olMap) { try { return olMap.getSize().join(' × '); } catch (err) { return '?'; } }
+
+        // Repli si la carte native n'est pas lisible : setExtent de GEO, avec une emprise au rapport de la carte.
         function _zoomTo(bbox) {
+            try { _zoomNative(bbox); return; }
+            catch (err) { console.warn('[geo-dfi] cadrage natif impossible, repli sur setExtent de GEO :', err); }
             var map = geoApplication.map;
             var mapCrs = (map.extent && map.extent.crs) || 'EPSG:3857';
             var size = null;
@@ -505,12 +545,12 @@ angular
                 var px = _nativeMap().getSize();
                 if (px && px[0] > 0 && px[1] > 0) { size = { width: px[0], height: px[1] }; }
             } catch (err) { console.warn('[geo-dfi] taille de la carte inconnue, centrage approché :', err); }
-            var box = dfi.expandBbox(bbox, 0.5, 0.0003);      // marge d'au moins 0,0003° (environ 30 m)
+            var box = dfi.expandBbox(bbox, 0.5, 0.0003);
             var ext = [box.minX, box.minY, box.maxX, box.maxY];
             var crs = 'EPSG:4326';
             if (mapCrs !== 'EPSG:4326') {
                 try { ext = window.ol.proj.transformExtent(ext, 'EPSG:4326', mapCrs); crs = mapCrs; }
-                catch (err) { console.warn("[geo-dfi] changement de projection impossible, emprise donnée en EPSG:4326 :", err); }
+                catch (err) { console.warn('[geo-dfi] changement de projection impossible, emprise donnée en EPSG:4326 :', err); }
             }
             var v = dfi.fitExtent({ minX: ext[0], minY: ext[1], maxX: ext[2], maxY: ext[3] }, size, (100 - _panelWidthPct) / 100);
             var r = map.setExtent({ minX: v.minX, maxX: v.maxX, minY: v.minY, maxY: v.maxY, crs: crs }, crs, { disablePadding: true });
@@ -546,6 +586,8 @@ angular
                 '  border:1px solid #89898a;border-radius:50%;background:#fff;color:#333;cursor:pointer;}',
                 '.geo-dfi-iconbtn:hover:not([disabled]){background:#eef2f8;}',
                 '.geo-dfi-iconbtn[disabled]{opacity:.5;cursor:default;}',
+                '.geo-dfi-iconbtn{position:relative;}',
+                '.geo-dfi-dot-new{position:absolute;top:0;right:0;width:10px;height:10px;border-radius:50%;background:#d93025;border:2px solid #f4f6f9;}',
                 '.geo-dfi-iconbtn--on{background:#27487a;border-color:#27487a;color:#fff;}',
                 '.geo-dfi-iconbtn--on:hover{background:#1d3a66;}',
                 '.geo-dfi-icon{width:18px;height:18px;display:block;}',
