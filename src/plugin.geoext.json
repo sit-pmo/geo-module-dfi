@@ -1,0 +1,74 @@
+{
+  "name": "geo.dfi",
+  "displayName": "Filiation des parcelles (DFI, DGFiP)",
+  "version": "0.1.0",
+  "minGeoVersion": "3.2.0",
+  "author": "fallamanche@vienne-condrieu-agglomeration.fr",
+  "allowMultiple": false,
+  "reuseConfiguration": true,
+  "preview": "src/preview.png",
+  "compatibleZoneTags": [
+    "widget.side.pro",
+    "widget.side"
+  ],
+  "code": {
+    "moduleName": "geo.dfi",
+    "dependencies": [
+      "bg.acf.base",
+      "bg.common.geo.GeoApi"
+    ]
+  },
+  "configuration": [
+    {
+      "@type": "com.bg.functionality.canvas.configuration.ConfigurationGroup",
+      "name": "Données",
+      "elements": [
+        {
+          "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
+          "name": "Adresse des données",
+          "description": "Adresse des fichiers JSON de filiation (un par commune), publiés par l'intégrateur integrator-dfi. Par défaut : https://vienne-condrieu-agglomeration.github.io/geo-community-data-dfi/",
+          "key": "dataUrl",
+          "required": false,
+          "type": "STRING",
+          "defaultValue": "https://vienne-condrieu-agglomeration.github.io/geo-community-data-dfi/"
+        },
+        {
+          "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
+          "name": "Communes du territoire",
+          "description": "Codes INSEE des communes autorisées, séparés par des espaces ou des virgules (ex. 38544 38087). Vide : toutes les communes publiées dans les données.",
+          "key": "communes",
+          "required": false,
+          "type": "STRING",
+          "defaultValue": ""
+        }
+      ]
+    },
+    {
+      "@type": "com.bg.functionality.canvas.configuration.ConfigurationGroup",
+      "name": "Affichage",
+      "elements": [
+        {
+          "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
+          "name": "Nom de l'onglet",
+          "description": "Libellé de l'onglet de la barre latérale droite.",
+          "key": "toolName",
+          "required": false,
+          "type": "STRING",
+          "defaultValue": "Filiation des parcelles"
+        },
+        {
+          "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
+          "name": "Largeur du panneau (%)",
+          "description": "Part de l'écran occupée par le panneau ouvert. Un graphe a besoin de place.",
+          "key": "panelWidth",
+          "required": false,
+          "type": "NUMBER",
+          "minValue": 25,
+          "maxValue": 80,
+          "step": 5,
+          "defaultValue": 45
+        }
+      ]
+    }
+  ]
+}

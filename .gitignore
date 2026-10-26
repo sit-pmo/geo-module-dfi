@@ -1,0 +1,5 @@
+node_modules
+dist
+*.zip
+# Plugin propriétaire Business Geografic : ne pas versionner (voir lib/README.md)
+lib/*.tgz

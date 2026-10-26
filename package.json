@@ -1,0 +1,32 @@
+{
+  "name": "geo-dfi",
+  "version": "0.1.0",
+  "description": "Module GEO de filiation des parcelles cadastrales (Documents de filiation informatisés de la DGFiP) : graphe des parcelles mères, des lots et des parcelles filles",
+  "main": "src/js/extension.js",
+  "devDependencies": {
+    "archiver": "^5.3.1",
+    "css-loader": "^3.2.0",
+    "raw-loader": "^4.0.2",
+    "style-loader": "^1.0.0",
+    "webpack": "^4.42.1",
+    "webpack-cli": "^3.3.10"
+  },
+  "scripts": {
+    "build": "webpack",
+    "watch": "webpack --watch",
+    "package": "npm run check:version && npm run build && node scripts/package.js",
+    "publish": "webpack --config webpack.publish.config.js",
+    "publish:watch": "webpack --watch --config webpack.publish.config.js",
+    "test": "npm run check:version && node test/changelog.test.mjs && node test/dfi-data.test.mjs",
+    "check:version": "node scripts/check-version.js"
+  },
+  "keywords": [
+    "geo",
+    "cadastre",
+    "dfi",
+    "filiation",
+    "parcelle"
+  ],
+  "author": "fallamanche@vienne-condrieu-agglomeration.fr",
+  "license": "GPL-3.0-or-later"
+}
