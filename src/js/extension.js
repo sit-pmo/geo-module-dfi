@@ -207,10 +207,12 @@ angular
                 '  </div>',
                 '  <div class="geo-dfi-body">',
                 '  <form class="geo-dfi-form" ng-submit="searchSelection()" novalidate>',
+                '    <div class="geo-dfi-msg geo-dfi-msg--warn" role="alert" ng-if="communeWarning">{{ communeWarning }}</div>',
                 '    <label for="geo-dfi-commune">Commune</label>',
-                '    <input id="geo-dfi-commune" class="geo-dfi-field" type="text" list="geo-dfi-communes" ng-model="state.communeText"',
-                '           ng-change="onCommune()" ng-blur="onCommuneBlur()" autocomplete="off" spellcheck="false" placeholder="Nom ou code INSEE">',
-                '    <datalist id="geo-dfi-communes"></datalist>',
+                '    <select id="geo-dfi-commune" class="geo-dfi-field" ng-model="state.insee" ng-change="onCommune()"',
+                '            ng-options="c.insee as c.label for c in communes" ng-disabled="!communes.length">',
+                '      <option value="">{{ communes.length ? \'— Choisir une commune —\' : \'—\' }}</option>',
+                '    </select>',
                 '    <div class="geo-dfi-row geo-dfi-row--pair">',
                 '      <div><label for="geo-dfi-section">Section</label>',
                 '        <select id="geo-dfi-section" class="geo-dfi-field" ng-model="state.section" ng-change="onSection()"',
@@ -281,8 +283,12 @@ angular
                 $scope.locateEnabled = _locateEnabled;
                 $scope.source    = _source;
                 $scope.sections  = [];
+                $scope.communes  = [];
+                // Sans codes INSEE déclarés, la liste serait celle de toutes les communes publiées : on exige une déclaration
+                $scope.communeWarning = _communes ? '' : 'Aucune commune déclarée : renseigner « Communes du territoire » (codes INSEE) '
+                    + 'dans les options du module. La recherche par commune est désactivée ; la saisie d\'une référence cadastrale (IDU) reste possible.';
                 $scope.state     = {
-                    idu: '', communeText: '', insee: '', section: '', numberText: '', listLoading: false,
+                    idu: '', insee: '', section: '', numberText: '', listLoading: false,
                     loading: false, error: '', result: null, selected: null,
                     locating: false, locateMessage: '', located: false
                 };
@@ -389,7 +395,6 @@ angular
                 $scope.focusParcel = function (idu) { $scope.state.idu = idu; $scope.search(); };
 
                 // ── Sélection Commune -> Section -> Numéro : les listes viennent des données (index puis fichier de la commune) ──
-                var _communeOptions = [];
                 var _cascadeLookup = null;
 
                 function _fillDatalist(id, values) {
@@ -413,24 +418,18 @@ angular
 
                 $scope.onCommune = function () {
                     var st = $scope.state;
-                    var commune = dfi.resolveCommune(_communeOptions, st.communeText);
-                    if (!commune) { _resetCascade(); return; }
-                    if (commune.insee === st.insee) { return; }
+                    var insee = st.insee;
                     _resetCascade();
-                    st.insee = commune.insee; st.listLoading = true; st.error = '';
-                    _getIndex().then(function (index) { return _getLookup(index, commune.insee); }).then(function (lookup) {
+                    if (!insee) { return; }
+                    st.insee = insee; st.listLoading = true; st.error = '';
+                    _getIndex().then(function (index) { return _getLookup(index, insee); }).then(function (lookup) {
                         _apply(function () {
-                            if (st.insee !== commune.insee) { return; }   // une autre commune a été choisie entre-temps
+                            if (st.insee !== insee) { return; }   // une autre commune a été choisie entre-temps
                             st.listLoading = false; _cascadeLookup = lookup;
                             $scope.sections = dfi.sectionOptions(lookup);
                             if ($scope.sections.length === 1) { st.section = $scope.sections[0].value; $scope.onSection(); }
                         });
-                    }).catch(function (err) { _apply(function () { if (st.insee === commune.insee) { st.listLoading = false; st.error = _errorMessage(err); } }); });
-                };
-                $scope.onCommuneBlur = function () {
-                    var st = $scope.state;   // un nom saisi à la main est remplacé par le libellé complet de la liste
-                    var commune = dfi.resolveCommune(_communeOptions, st.communeText);
-                    if (commune) { st.communeText = commune.label; }
+                    }).catch(function (err) { _apply(function () { if (st.insee === insee) { st.listLoading = false; st.error = _errorMessage(err); } }); });
                 };
                 $scope.onSection = function () { $scope.state.numberText = ''; _fillNumbers(); };
                 $scope.canSearch = function () { var st = $scope.state; return !!dfi.selectionIdu(st.insee, st.section, st.numberText); };
@@ -444,8 +443,6 @@ angular
                 // Reporte la parcelle affichée dans les trois champs (saisie d'IDU, clic dans le graphe ou la synthèse)
                 function _syncCascade(lookup, parsed) {
                     var st = $scope.state;
-                    var commune = dfi.resolveCommune(_communeOptions, parsed.insee);
-                    st.communeText = commune ? commune.label : parsed.insee;
                     st.insee = parsed.insee; st.listLoading = false; _cascadeLookup = lookup;
                     $scope.sections = dfi.sectionOptions(lookup);
                     st.section = parsed.prefix + parsed.section;
@@ -455,8 +452,12 @@ angular
 
                 _getIndex().then(function (index) {
                     _apply(function () {
-                        _communeOptions = dfi.communeOptions(index, _communes);
-                        _fillDatalist('geo-dfi-communes', _communeOptions.map(function (c) { return c.label; }));
+                        // sans déclaration : aucune liste (un menu de 35 000 communes n'aurait pas de sens)
+                        $scope.communes = _communes ? dfi.communeOptions(index, _communes) : [];
+                        if (_communes && !$scope.communes.length) {
+                            $scope.communeWarning = 'Aucune des communes déclarées dans les options du module n\'est publiée dans les données ('
+                                + Object.keys(_communes).join(', ') + ').';
+                        }
                     });
                 }).catch(function (err) { _apply(function () { $scope.state.error = _errorMessage(err); }); });
 
@@ -706,6 +707,7 @@ angular
                 '.geo-dfi-btn--main:hover:not([disabled]){background:#1d3a66;}',
                 '.geo-dfi-msg{margin:8px 0;padding:6px 8px;background:#f1f3f6;border-radius:4px;}',
                 '.geo-dfi-msg--error{background:#fdecea;color:#8a1c12;}',
+                '.geo-dfi-msg--warn{background:#fff4d6;color:#6b4b00;}',
                 '.geo-dfi-parcel{margin:10px 0 4px;font-size:15px;font-weight:700;}',
                 '.geo-dfi-parcel .geo-dfi-btn{margin-left:6px;font-size:12px;font-weight:400;}',
                 '.geo-dfi-idu{margin:0 6px;font-size:12px;font-weight:400;color:#555;}',

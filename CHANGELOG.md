@@ -11,6 +11,19 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ## [Non publié]
 
+## [0.3.1] — 2026-10-26
+
+### Modifié
+
+- La **commune** se choisit dans une **liste déroulante** (plus de saisie avec suggestions), limitée aux communes déclarées dans le
+  réglage « Communes du territoire » des options du module
+
+### Corrigé
+
+- Si aucune commune n'est déclarée dans les options (codes INSEE oubliés), un **message d'avertissement** l'indique et la recherche par
+  commune est désactivée, au lieu de proposer toutes les communes publiées. La saisie d'une référence cadastrale (IDU) reste possible.
+  Un message signale aussi le cas où les communes déclarées ne figurent pas dans les données
+
 ## [0.3.0] — 2026-10-26
 
 ### Ajouté

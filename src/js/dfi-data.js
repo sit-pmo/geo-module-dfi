@@ -149,22 +149,6 @@ export function communeOptions(index, allowed) {
     return list;
 }
 
-/**
- * Retrouve une commune d'après ce que l'utilisateur a saisi : libellé exact de la liste, code INSEE, ou nom unique (sans casse ni
- * accents). Retourne null si rien ne correspond ou si le nom est ambigu.
- */
-export function resolveCommune(options, text) {
-    var wanted = String(text == null ? '' : text).trim();
-    if (!wanted) { return null; }
-    var upper = wanted.toUpperCase();
-    var found = options.filter(function (o) { return o.label === wanted || o.insee === upper; });
-    if (found.length === 1) { return found[0]; }
-    var fold = function (s) { return s.normalize ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[-'’\s]+/g, ' ') : s.toLowerCase(); };
-    var key = fold(wanted);
-    found = options.filter(function (o) { return o.name && fold(o.name) === key; });
-    return found.length === 1 ? found[0] : null;
-}
-
 function _allKeys(lookup) {
     var seen = {};
     Object.keys(lookup.asMother).concat(Object.keys(lookup.asDaughter)).forEach(function (k) { seen[k] = true; });

@@ -1,7 +1,7 @@
 {
   "name": "geo.dfi",
   "displayName": "Filiation des parcelles (DFI, DGFiP)",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "minGeoVersion": "3.2.0",
   "author": "fallamanche@vienne-condrieu-agglomeration.fr",
   "allowMultiple": false,
@@ -35,7 +35,7 @@
         {
           "@type": "com.bg.functionality.canvas.configuration.PropertyConfigurationElement",
           "name": "Communes du territoire",
-          "description": "Codes INSEE des communes autorisées, séparés par des espaces ou des virgules (ex. 38544 38087). Vide : toutes les communes publiées dans les données.",
+          "description": "Codes INSEE des communes proposées dans la recherche, séparés par des espaces ou des virgules (ex. 38544 38087). À renseigner : vide, la recherche par commune est désactivée (un message le signale).",
           "key": "communes",
           "required": false,
           "type": "STRING",

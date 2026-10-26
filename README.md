@@ -7,7 +7,7 @@ ce qu'elle est devenue, sous forme de graphe (parcelles mères → opération �
 
 ## Fonctionnement
 
-Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on choisit la parcelle par **commune → section → numéro** (listes liées, alimentées par les données ; la
+Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on choisit la parcelle par **commune → section → numéro** (listes liées ; les communes sont celles déclarées dans les options du module, un message avertit si rien n'est déclaré ; la
 référence cadastrale IDU de 14 caractères, par exemple `38544000BI0498`, reste saisissable en repli) ; le module affiche le graphe de ses ancêtres et de ses descendants. Chaque opération (division, réunion,
 lotissement, remaniement…) indique sa date et la nature du document (arpentage, croquis de conservation…). Un clic sur une
 parcelle ou une opération en donne le détail et permet de suivre la filiation d'une autre parcelle du graphe.
@@ -26,7 +26,7 @@ de serveur ni de base de données. Il lit d'abord `index.json` et **refuse un fo
 | Réglage | Rôle |
 |---|---|
 | Adresse des données | Dossier des fichiers JSON (par défaut les pages GitHub ci-dessus) |
-| Communes du territoire | Codes INSEE autorisés (vide : toutes les communes publiées) |
+| Communes du territoire | Codes INSEE des communes proposées dans la liste (à renseigner : vide, la recherche par commune est désactivée et un message avertit) |
 | Bouton « Localiser sur la carte », adresse du service cadastral | Active la localisation (oui par défaut) ; service qui renvoie le contour d'une parcelle (par défaut l'API Carto de l'IGN) |
 | Nom et largeur de l'onglet | Libellé de l'onglet ; part de l'écran occupée par le panneau |
 

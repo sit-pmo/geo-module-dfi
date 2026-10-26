@@ -4,7 +4,7 @@ import {
     SUPPORTED_FORMAT, DfiError, parseIdu, parcelKey, splitKey, parcelLabel, formatDate, dataUrl, loadJson,
     checkIndex, loadIndex, loadCommune, buildLookup, describeLot, buildGraph, parcelSummary, layoutGraph,
     DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, fitExtent, parseCadastre, loadParcel, formatArea,
-    communeOptions, resolveCommune, sectionOptions, numberOptions, normalizeNumber, selectionIdu
+    communeOptions, sectionOptions, numberOptions, normalizeNumber, selectionIdu
 } from '../src/js/dfi-data.js';
 
 let failures = 0;
@@ -262,16 +262,6 @@ await test('communeOptions : tri par nom, libellé, filtre du territoire, index 
     assert.equal(all.find((o) => o.insee === '38544').label, 'Vienne (38544)');
     assert.equal(all.find((o) => o.insee === '38999').label, '38999', 'sans nom : le code tient lieu de libellé');
     assert.deepEqual(communeOptions(index, { '38544': true, '69007': true, '00000': true }).map((o) => o.insee), ['69007', '38544']);
-});
-await test('resolveCommune : libellé, code INSEE, nom sans accents, ambiguïté', () => {
-    const index = { communes: { '38544': { lots: 1, nom: 'Vienne' }, '86194': { lots: 1, nom: 'Vienne' }, '69064': { lots: 1, nom: 'Condrieu' },
-                                '38087': { lots: 1, nom: 'Chasse-sur-Rhône' }, '38999': { lots: 1 } } };
-    const o = communeOptions(index, null);
-    assert.equal(resolveCommune(o, 'Condrieu (69064)').insee, '69064');
-    assert.equal(resolveCommune(o, '69064').insee, '69064'); assert.equal(resolveCommune(o, ' condrieu ').insee, '69064');
-    assert.equal(resolveCommune(o, 'chasse sur rhone').insee, '38087', 'sans accents ni tirets');
-    assert.equal(resolveCommune(o, 'Vienne'), null, 'deux communes de ce nom : ambigu'); assert.equal(resolveCommune(o, 'Vienne (86194)').insee, '86194');
-    assert.equal(resolveCommune(o, '38999').insee, '38999'); assert.equal(resolveCommune(o, ''), null); assert.equal(resolveCommune(o, 'Lyon'), null);
 });
 await test('sectionOptions / numberOptions : listes tirées des parcelles des DFI', () => {
     const lk = buildLookup({ insee: '38544', lots: [
