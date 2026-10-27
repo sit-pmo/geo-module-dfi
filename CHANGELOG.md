@@ -30,6 +30,7 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ### Modifié
 
+- L'**onglet** du module affiche la même icône de filiation que la barre d'outils et l'aperçu, à la place de la loupe
 - En **plein écran**, la fiche du nœud choisi s'affiche dans un **volet à droite** du graphe, et non plus dessous ; dans le panneau
   étroit, elle reste sous le graphe mais vient d'elle-même dans la partie visible
 

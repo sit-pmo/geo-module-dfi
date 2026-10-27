@@ -85,6 +85,9 @@ angular
             circleQuestion: _lucideSvg('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>'
                                  + '<path d="M12 17h.01"/>')
         };
+        // GEO n'a pas « graph-hub » parmi ses icônes natives : l'onglet l'affiche en masque CSS, à la couleur du texte
+        var _TAB_ICON_MASK = 'url("data:image/svg+xml,'
+                           + encodeURIComponent(_ICONS.graphHub.replace('currentColor', '#000')) + '")';
 
         geoApplication.executeWhenInitialized(function () {
             var conf = geoApplication.getConfigurationByExtensionKey(pluginConf.name);
@@ -129,7 +132,7 @@ angular
                 key:          pluginConf.name,
                 extensionKey: pluginConf.name,
                 name:         _toolName,
-                icon:         'icon_search',          // icône native GEO (à remplacer par une icône de filiation)
+                icon:         'geo-dfi-tab-icon',     // classe posée par GEO sur l'onglet (.launcher-icon), dessinée dans _injectStyles
                 active:       false,
                 widthPolicy:  'custom',
                 enable:       function () { return true; },
@@ -1061,6 +1064,8 @@ angular
             var style = document.createElement('style');
             style.id = 'geo-dfi-styles';
             style.textContent = [
+                '.geo-dfi-tab-icon::before{content:"";display:inline-block;width:1em;height:1em;vertical-align:-.125em;background-color:currentColor;',
+                '  -webkit-mask:' + _TAB_ICON_MASK + ' center/contain no-repeat;mask:' + _TAB_ICON_MASK + ' center/contain no-repeat;}',
                 // Barre d'outils fixe en haut, contenu qui défile seul en dessous (même principe que le panneau de Panoramax)
                 '.geo-dfi{display:flex;flex-direction:column;height:100%;font-size:13px;line-height:1.4;color:#222;background:#fff;overflow:hidden;box-sizing:border-box;}',
                 '.geo-dfi-toolbar{flex:none;display:flex;align-items:center;gap:8px;padding:6px 12px;background:#f4f6f9;border-bottom:1px solid #d5dae1;}',
