@@ -7,7 +7,7 @@ ce qu'elle est devenue, sous forme de graphe (parcelles mères → opération �
 
 ## Fonctionnement
 
-Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on choisit la parcelle par **commune → section → numéro** (listes liées ; les communes sont celles déclarées dans les options du module, un message avertit si rien n'est déclaré ; la
+Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; **visite guidée** « ? » ; seul le contenu défile en dessous) : on choisit la parcelle par **commune → section → numéro** (listes liées ; les communes sont celles déclarées dans les options du module, un message avertit si rien n'est déclaré ; la
 référence cadastrale IDU de 14 caractères, par exemple `38544000BI0498`, reste saisissable en repli) ; le module affiche le graphe de ses ancêtres et de ses descendants. Chaque opération (division, réunion,
 lotissement, remaniement…) indique sa date et la nature du document (arpentage, croquis de conservation…). Le survol d'un
 nœud en donne l'essentiel (infobulle) ; un clic sur une parcelle ou une opération en donne le détail (dans un volet à droite du
@@ -34,6 +34,19 @@ de serveur ni de base de données. Il lit d'abord `index.json` et **refuse un fo
 | Communes du territoire | Codes INSEE des communes proposées dans la liste (à renseigner : vide, la recherche par commune est désactivée et un message avertit) |
 | Bouton « Localiser sur la carte », adresse du service cadastral | Active la localisation (oui par défaut) ; service qui renvoie le contour d'une parcelle (par défaut l'API Carto de l'IGN) |
 | Nom et largeur de l'onglet | Libellé de l'onglet ; part de l'écran occupée par le panneau |
+| Visite guidée à la première ouverture | Lance la visite la première fois qu'un utilisateur ouvre le panneau (oui par défaut) ; le bouton « ? » la relance toujours |
+
+## Visite guidée
+
+Une visite en sept étapes (bibliothèque [Driver.js](https://driverjs.com/), MIT, comme le module Panoramax) présente la recherche, la
+synthèse, la lecture du graphe et ses couleurs, le clic sur un nœud, le zoom, la localisation sur la carte et la barre d'outils. Trois
+étapes avancent sur le vrai geste (« ✓ Bien joué ! ») : chercher une parcelle, cliquer sur un nœud, zoomer ou déplacer le graphe ;
+« Suivant » les passe. La visite est **non modale** : le panneau reste utilisable pendant qu'elle se déroule.
+
+Elle démarre à la première ouverture du panneau ; « Terminer » ou la croix la mémorisent comme vue, « Ne plus afficher » aussi, dans le
+navigateur (clé `localStorage` `geo-dfi-tour`, valeur `v1:done` ou `v1:never`). Fermer le panneau en cours de visite n'enregistre rien.
+Pour la revoir d'elle-même : `localStorage.removeItem('geo-dfi-tour')` dans la console, puis recharger. Passer `_TOUR_VERSION` à `v2` dans
+`extension.js` la réaffiche une fois pour tout le monde après une évolution notable.
 
 Zones du gabarit : le module n'est proposé que pour la barre latérale droite (`widget.side.pro`, `widget.side`), jamais pour l'ensemble du gabarit
 (`global.pro`). Constaté sur GEO 4.5.0 : la zone « Lanceur de fonctionnalités » (bandeau de gauche) n'accepte pas le module, et un onglet de type
