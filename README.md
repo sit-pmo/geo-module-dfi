@@ -34,7 +34,7 @@ de serveur ni de base de données. Il lit d'abord `index.json` et **refuse un fo
 | Communes du territoire | Codes INSEE des communes proposées dans la liste (à renseigner : vide, la recherche par commune est désactivée et un message avertit) |
 | Bouton « Localiser sur la carte », adresse du service cadastral | Active la localisation (oui par défaut) ; service qui renvoie le contour d'une parcelle (par défaut l'API Carto de l'IGN) |
 | Nom et largeur de l'onglet | Libellé de l'onglet ; part de l'écran occupée par le panneau |
-| Visite guidée à la première ouverture | Lance la visite la première fois qu'un utilisateur ouvre le panneau (oui par défaut) ; le bouton « ? » la relance toujours |
+| Visite guidée au premier lancement | Bulle sur l'onglet au chargement de l'application, puis visite à la première ouverture du panneau (oui par défaut) ; le bouton « ? » relance toujours la visite |
 
 ## Visite guidée
 
@@ -43,7 +43,8 @@ synthèse, la lecture du graphe et ses couleurs, le clic sur un nœud, le zoom, 
 étapes avancent sur le vrai geste (« ✓ Bien joué ! ») : chercher une parcelle, cliquer sur un nœud, zoomer ou déplacer le graphe ;
 « Suivant » les passe. La visite est **non modale** : le panneau reste utilisable pendant qu'elle se déroule.
 
-Elle démarre à la première ouverture du panneau ; « Terminer » ou la croix la mémorisent comme vue, « Ne plus afficher » aussi, dans le
+Tant qu'elle n'a pas été vue, une **bulle sur l'onglet** du module le signale au chargement de l'application (« Plus tard » la ferme jusqu'au
+prochain chargement, « Ne plus afficher » la fait taire, ouvrir l'onglet la ferme). La visite démarre ensuite à la première ouverture du panneau ; « Terminer » ou la croix la mémorisent comme vue, « Ne plus afficher » aussi, dans le
 navigateur (clé `localStorage` `geo-dfi-tour`, valeur `v1:done` ou `v1:never`). Fermer le panneau en cours de visite n'enregistre rien.
 Pour la revoir d'elle-même : `localStorage.removeItem('geo-dfi-tour')` dans la console, puis recharger. Passer `_TOUR_VERSION` à `v2` dans
 `extension.js` la réaffiche une fois pour tout le monde après une évolution notable.

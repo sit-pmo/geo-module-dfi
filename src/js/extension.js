@@ -120,6 +120,7 @@ angular
                 _registered = true;
                 _injectStyles();
                 _registerWidget();
+                _startTeaser(0);
             }
         });
 
@@ -322,6 +323,7 @@ angular
         function _buildController() {
             return ['$scope', '$element', '$timeout', function ($scope, $element, $timeout) {
                 _currentScope = $scope;
+                _cancelTeaser();   // panneau ouvert : l'accroche sur l'onglet a rempli son rôle
                 $scope.title     = _toolName;
                 $scope.isFullscreen = false;
                 $scope.locateEnabled = _locateEnabled;
@@ -991,19 +993,76 @@ angular
             };
         }
 
+        // Bulles non modales : sans voile (overlayOpacity 0, SVG masqué en CSS) et sans la classe driver-active, dont la
+        // règle « * { pointer-events: none } » bloquerait la page, justement ce qu'on apprend à manipuler (voir _drive).
+        // Échap ferme (allowClose) sans rien mémoriser.
+        function _tourOptions(extra) {
+            var o = {
+                animate: false, overlayOpacity: 0, stagePadding: 4, stageRadius: 4, allowClose: true, smoothScroll: false,
+                popoverClass: 'geo-dfi-tour', popoverOffset: 12, closeBtnLabel: 'Fermer', onPopoverRender: _renderPopover
+            };
+            for (var k in extra) { o[k] = extra[k]; }
+            return o;
+        }
+
+        function _drive(instance) {
+            instance.drive();
+            document.body.classList.remove('driver-active');
+        }
+
+        // ── Accroche sur l'onglet, au chargement de l'appli, tant que la visite n'a pas été vue ──
+        var _teaser = null;
+
+        // L'onglet est rendu par GEO après executeWhenInitialized : quelques essais espacés, puis on renonce (jamais de bulle
+        // flottante au milieu de l'écran). On vise l'icône elle-même (classe posée par GEO, voir icon dans _registerWidget) :
+        // son ancêtre cliquable peut être large et décaler la bulle (constaté avec Panoramax). Si GEO en rend plusieurs, on
+        // garde la plus à droite parmi les visibles, celle de la barre latérale droite.
+        function _startTeaser(attempt) {
+            if (!_tourPending() || _currentScope) { return; }   // déjà vue, ou panneau déjà ouvert
+            var icon = null;
+            Array.prototype.forEach.call(document.querySelectorAll('.geo-dfi-tab-icon'), function (el) {
+                var r = el.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0 && (!icon || r.left > icon.getBoundingClientRect().left)) { icon = el; }
+            });
+            if (!icon) {
+                if (attempt < 10) { setTimeout(function () { _startTeaser(attempt + 1); }, 500); }
+                return;
+            }
+            var teaser = _teaser = driver(_tourOptions({
+                onDestroyed: function () { if (_teaser === teaser) { _teaser = null; } }
+            }));
+            teaser.setSteps([{
+                element: icon,
+                popover: {
+                    title: 'Nouveau : ' + _toolName,
+                    description: 'Ouvrez cet onglet pour savoir d\'où vient une parcelle et ce qu\'elle est devenue (divisions, '
+                        + 'réunions…). Une courte visite guidée vous attend à l\'ouverture.',
+                    side: 'left', align: 'center', showButtons: ['close']
+                },
+                data: { buttons: [
+                    _btn('Ne plus afficher', function () { _setTourState('never'); teaser.destroy(); }, true),
+                    _btn('Plus tard', function () { teaser.destroy(); })
+                ] }
+            }]);
+            _drive(teaser);
+        }
+
+        function _cancelTeaser() {
+            if (_teaser && _teaser.isActive()) { _teaser.destroy(); }
+            _teaser = null;
+        }
+
+        // ── Visite du panneau ──
         function _startTour() {
             if (_tour && _tour.isActive()) { _tour.destroy(); return; }   // « ? » rappuyé en cours de visite : fermer
+            _cancelTeaser();
 
-            // Visite non modale : sans voile (overlayOpacity 0, SVG masqué en CSS) et sans la classe driver-active, dont la
-            // règle « * { pointer-events: none } » bloquerait le panneau, justement ce qu'on apprend à manipuler.
-            // Échap ferme (allowClose) sans rien mémoriser ; la croix mémorise « terminée ».
-            var tour = _tour = driver({
-                animate: false, overlayOpacity: 0, stagePadding: 4, stageRadius: 4, allowClose: true, smoothScroll: false,
-                popoverClass: 'geo-dfi-tour', popoverOffset: 12, closeBtnLabel: 'Fermer la visite',
-                onPopoverRender: _renderPopover,
+            // La croix mémorise « terminée » : l'utilisateur a écarté la visite, le « ? » la relance.
+            var tour = _tour = driver(_tourOptions({
+                closeBtnLabel: 'Fermer la visite',
                 onCloseClick: function () { _setTourState('done'); tour.destroy(); },
                 onDestroyed: function () { _tourWaiting = null; if (_tour === tour) { _tour = null; } }
-            });
+            }));
             var prev = _btn('‹ Précédent', function () { tour.movePrevious(); }, true);
             var next = _btn('Suivant ›', function () { tour.moveNext(); });
 
@@ -1052,8 +1111,7 @@ angular
             steps.forEach(function (s, i) { s.data.count = 'Étape ' + (i + 1) + ' sur ' + steps.length; });
 
             tour.setSteps(steps);
-            tour.drive();
-            document.body.classList.remove('driver-active');
+            _drive(tour);
         }
 
         // ============================================================
@@ -1148,8 +1206,10 @@ angular
                 // (blanc, liseré et bouton rouge GEO, « Étape N sur M »). Tailles en px : indépendantes de GEO.
                 '.driver-overlay{display:none!important;}',
                 '@keyframes geo-dfi-pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,74,74,.55);}50%{box-shadow:0 0 0 8px rgba(240,74,74,0);}}',
-                '.geo-dfi .driver-active-element{animation:geo-dfi-pulse 1.4s ease-in-out infinite;}',
-                '@media (prefers-reduced-motion:reduce){.geo-dfi .driver-active-element{animation:none;outline:3px solid #f04a4a;}}',
+                '.geo-dfi .driver-active-element,.geo-dfi-tab-icon.driver-active-element{animation:geo-dfi-pulse 1.4s ease-in-out infinite;}',
+                '.geo-dfi-tab-icon.driver-active-element{border-radius:50%;}',
+                '@media (prefers-reduced-motion:reduce){.geo-dfi .driver-active-element,.geo-dfi-tab-icon.driver-active-element{',
+                '  animation:none;outline:3px solid #f04a4a;}}',
                 '.driver-popover.geo-dfi-tour{background:#fff;border-radius:4px;min-width:260px;max-width:340px;padding:0;',
                 '  border-top:3px solid #f04a4a;box-shadow:0 4px 16px rgba(0,0,0,.18);color:#263238;}',
                 '.geo-dfi-tour .driver-popover-title{font-size:14px;font-weight:700;line-height:1.45;color:#263238;padding:0 14px;display:block;}',

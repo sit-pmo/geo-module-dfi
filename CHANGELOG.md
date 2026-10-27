@@ -24,7 +24,7 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
   encore au cadastre actuel, colorées selon leur place (parcelle cherchée, descendantes, autres parcelles liées), avec une légende dans
   le panneau. Les parcelles disparues (divisées, réunies ou renumérotées) n'ont plus de contour : elles sont listées. Au plus 40 parcelles,
   demandées 3 à la fois au service de l'IGN
-- **Visite guidée** du module, comme celle de Panoramax : elle démarre à la première ouverture du panneau et se relance à tout moment
+- **Visite guidée** du module, comme celle de Panoramax : une bulle signale l'onglet au chargement de l'application, puis la visite démarre à la première ouverture du panneau et se relance à tout moment
   avec le bouton **?** de la barre d'outils. Sept étapes, dont trois s'apprennent en faisant (chercher une parcelle, cliquer sur un nœud,
   zoomer dans le graphe) ; on peut la passer ou ne plus l'afficher. Un réglage permet de couper son démarrage automatique
 
