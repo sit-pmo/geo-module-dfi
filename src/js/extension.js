@@ -257,6 +257,7 @@ angular
                 '      <li ng-if="!state.result.futureText.length">Devenir : aucune évolution postérieure connue dans les DFI.</li>',
                 '    </ul>',
                 '    <div class="geo-dfi-msg" ng-if="state.result.truncated">Graphe tronqué : trop de parcelles liées.</div>',
+                '    <div class="geo-dfi-view">',
                 '    <div class="geo-dfi-graph-wrap">',
                 '      <div class="geo-dfi-graph" tabindex="-1"></div>',
                 '      <div class="geo-dfi-zoom" role="group" aria-label="Zoom du graphe">',
@@ -281,6 +282,7 @@ angular
                 '              ng-click="focusParcel(state.selected.parcel.idu)">Voir la filiation de cette parcelle</button>',
                 '      <button type="button" class="geo-dfi-btn" ng-if="state.selected.parcel && locateEnabled"',
                 '              ng-click="locate(state.selected.parcel)" ng-disabled="state.locating">Localiser sur la carte</button>',
+                '    </div>',
                 '    </div>',
                 '  </div>',
                 '  <div class="geo-dfi-foot">',
@@ -378,7 +380,7 @@ angular
                     if (!container || !_layout) { return; }
                     _renderGraph(container, _layout, _selectedId, 'p:' + $scope.state.result.parsed.key, function (node) {
                         _apply(function () { _select(node); });
-                    });
+                    }, function (node) { return dfi.nodeTooltip(_lookup, node); });
                 }
                 $scope.zoomGraph = function (direction) { _zoomBy(_graphContainer(), direction > 0 ? _ZOOM_STEP : 1 / _ZOOM_STEP); };
                 $scope.fitGraph = function () { _fitGraph(_graphContainer()); };
@@ -410,7 +412,13 @@ angular
                             mothers: d.mothers.map(_parcelInfo), daughters: d.daughters.map(_parcelInfo)
                         };
                     }
-                    _draw();
+                    // Après le cycle Angular : la fiche existe, et en plein écran elle a pris sa place à côté du graphe
+                    $timeout(function () {
+                        _draw();
+                        var detail = $element[0].querySelector('.geo-dfi-detail');
+                        // Panneau étroit : la fiche est sous le graphe, on la fait venir dans la partie visible
+                        if (detail && !$scope.isFullscreen && detail.scrollIntoView) { detail.scrollIntoView({ block: 'nearest' }); }
+                    }, 0);
                 }
 
                 $scope.focusParcel = function (idu) { $scope.state.idu = idu; $scope.search(); };
@@ -550,7 +558,7 @@ angular
             return el;
         }
 
-        function _renderGraph(container, layout, selectedId, searchedId, onSelect) {
+        function _renderGraph(container, layout, selectedId, searchedId, onSelect, tipOf) {
             container.innerHTML = '';
             // Zone d'affichage : toute la largeur, la hauteur du graphe dans la limite du max-height du conteneur
             // (assez haute pour les boutons de zoom)
@@ -565,17 +573,23 @@ angular
             var marker = _svg('marker', { id: 'geo-dfi-arrow', viewBox: '0 0 10 10', refX: '9', refY: '5',
                 markerWidth: '7', markerHeight: '7', orient: 'auto-start-reverse' }, defs);
             _svg('path', { d: 'M0,0 L10,5 L0,10 z', 'class': 'geo-dfi-arrowhead' }, marker);
+            // Lignée du nœud choisi (origine et devenir) en évidence ; le reste (sœurs, co-mères, autres branches) atténué
+            var lineage = dfi.lineageOf(layout.paths, selectedId);
             layout.paths.forEach(function (p) {
-                _svg('path', { d: p.d, 'class': 'geo-dfi-edge', 'marker-end': 'url(#geo-dfi-arrow)' }, svg);
+                var inLineage = lineage[p.from] && lineage[p.to];
+                _svg('path', { d: p.d, 'class': 'geo-dfi-edge geo-dfi-edge--' + (inLineage ? 'lineage' : 'dim'),
+                    'marker-end': 'url(#geo-dfi-arrow)' }, svg);
             });
             var searchedNode = null;
             layout.nodes.forEach(function (n) {
                 var cls = 'geo-dfi-node geo-dfi-node--' + n.type
                     + (n.id === searchedId ? ' geo-dfi-node--searched' : '')
                     + (n.type === 'parcel' && !n.explored ? ' geo-dfi-node--leaf' : '')
-                    + (n.id === selectedId ? ' geo-dfi-node--selected' : '');
+                    + (n.id === selectedId ? ' geo-dfi-node--selected' : '')
+                    + (lineage[n.id] ? '' : ' geo-dfi-node--dim');
                 var g = _svg('g', { 'class': cls, transform: 'translate(' + n.x + ',' + n.y + ')', tabindex: '0', role: 'button',
                     'aria-label': n.label }, svg);
+                _svg('title', {}, g).textContent = tipOf(n);   // infobulle native au survol
                 _svg('rect', { width: n.w, height: n.h, rx: n.type === 'lot' ? 14 : 4 }, g);
                 var t = _svg('text', { x: n.w / 2, y: n.h / 2 + 4, 'text-anchor': 'middle' }, g);
                 t.textContent = n.label;
@@ -832,6 +846,10 @@ angular
                 '.geo-dfi-iconbtn--on:hover{background:#1d3a66;}',
                 '.geo-dfi-icon{width:18px;height:18px;display:block;}',
                 '.geo-dfi--full .geo-dfi-graph{max-height:70vh;}',
+                // Plein écran : la fiche du nœud choisi en volet à droite du graphe, plutôt que dessous
+                '.geo-dfi--full .geo-dfi-view{display:flex;gap:12px;align-items:flex-start;}',
+                '.geo-dfi--full .geo-dfi-graph-wrap{flex:1 1 auto;min-width:0;}',
+                '.geo-dfi--full .geo-dfi-detail{flex:0 0 320px;max-height:70vh;overflow:auto;box-sizing:border-box;}',
                 'body.' + _FULLSCREEN_BODY_CLASS + ' .acf-map-controls-topright{display:none!important;}',
                 '.geo-dfi label{display:block;margin-bottom:4px;font-weight:600;}',
                 '.geo-dfi-row{display:flex;gap:6px;margin-bottom:8px;}',
@@ -871,6 +889,9 @@ angular
                 '.geo-dfi-node--leaf rect{stroke-dasharray:3 2;fill:#f5f7fa;}',
                 '.geo-dfi-node--searched rect{fill:#ffe2b8;stroke:#c76a00;stroke-width:2.2;}',
                 '.geo-dfi-node--selected rect{stroke:#0b6b3a;stroke-width:2.6;}',
+                '.geo-dfi-node--dim{opacity:.45;}',
+                '.geo-dfi-edge--lineage{stroke:#4a6fa5;stroke-width:2;}',
+                '.geo-dfi-edge--dim{opacity:.35;}',
                 '.geo-dfi-node:focus-visible rect{stroke:#0b6b3a;stroke-width:3;}',
                 '.geo-dfi-detail{margin:8px 0;padding:8px;border:1px solid #d5dae1;border-radius:4px;}',
                 '.geo-dfi-detail-title{margin-bottom:4px;font-weight:700;}',
