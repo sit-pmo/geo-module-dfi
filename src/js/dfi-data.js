@@ -318,6 +318,50 @@ export function buildGraph(lookup, key, options) {
     };
 }
 
+/**
+ * Lignée d'un nœud du graphe : ses ancêtres (en remontant les arêtes) et ses descendants (en les descendant), lui compris.
+ * Les sœurs et co-mères n'en font pas partie : c'est le chemin d'origine et de devenir à mettre en évidence.
+ * Retourne un objet id -> true.
+ */
+export function lineageOf(edges, id) {
+    var up = {};
+    var down = {};
+    edges.forEach(function (e) {
+        (up[e.to] = up[e.to] || []).push(e.from);
+        (down[e.from] = down[e.from] || []).push(e.to);
+    });
+    var seen = {};
+    seen[id] = true;
+    [up, down].forEach(function (next) {
+        var stack = [id];
+        var visited = {};
+        while (stack.length) {
+            (next[stack.pop()] || []).forEach(function (n) {
+                if (!visited[n]) { visited[n] = true; seen[n] = true; stack.push(n); }
+            });
+        }
+    });
+    return seen;
+}
+
+/** Texte de l'infobulle d'un nœud du graphe (survol) : l'essentiel, sans cliquer. */
+export function nodeTooltip(lookup, node) {
+    var lines;
+    if (node.type === 'parcel') {
+        var s = parcelSummary(lookup, node.key);
+        lines = ['Parcelle ' + parcelLabel(node.key)]
+            .concat(s.origin.map(function (l) { return 'Origine : ' + l.kind.toLowerCase() + ' le ' + l.dateLabel; }))
+            .concat(s.future.length
+                ? s.future.map(function (l) { return 'Devenir : ' + l.kind.toLowerCase() + ' le ' + l.dateLabel; })
+                : ['Devenir : aucune évolution postérieure connue']);
+    } else {
+        var d = describeLot(lookup.lots[node.index]);
+        lines = [d.kind + ' — ' + d.natureLabel, d.dateLabel + ', DFI n° ' + d.dfi,
+                 d.mothers.length + ' mère(s), ' + d.daughters.length + ' fille(s)' + (node.hidden ? ', dont ' + node.hidden + ' non affichée(s)' : '')];
+    }
+    return lines.concat(['Cliquer pour le détail']).join('\n');
+}
+
 /** Synthèse en français, comme dans l'outil de Romain : origine (lots où la parcelle est fille) et devenir. */
 export function parcelSummary(lookup, key) {
     return {

@@ -9,8 +9,10 @@ ce qu'elle est devenue, sous forme de graphe (parcelles mères → opération �
 
 Onglet de la **barre latérale droite**, avec une **barre d'outils fixe** (localiser et effacer le repérage, **Nouveautés**, **plein écran** : le panneau prend toute la largeur, Échap pour en sortir ; seul le contenu défile en dessous) : on choisit la parcelle par **commune → section → numéro** (listes liées ; les communes sont celles déclarées dans les options du module, un message avertit si rien n'est déclaré ; la
 référence cadastrale IDU de 14 caractères, par exemple `38544000BI0498`, reste saisissable en repli) ; le module affiche le graphe de ses ancêtres et de ses descendants. Chaque opération (division, réunion,
-lotissement, remaniement…) indique sa date et la nature du document (arpentage, croquis de conservation…). Un clic sur une
-parcelle ou une opération en donne le détail et permet de suivre la filiation d'une autre parcelle du graphe. Le graphe se
+lotissement, remaniement…) indique sa date et la nature du document (arpentage, croquis de conservation…). Le survol d'un
+nœud en donne l'essentiel (infobulle) ; un clic sur une parcelle ou une opération en donne le détail (dans un volet à droite du
+graphe en plein écran), met en évidence sa lignée (origine et devenir) et permet de suivre la filiation d'une autre parcelle du
+graphe. Le graphe se
 manipule comme une carte : molette ou boutons +/− pour zoomer, glisser pour se déplacer (pincement et glisser au doigt sur
 tablette ; flèches, + , − et 0 au clavier), bouton « Voir tout le graphe » pour revenir à l'ensemble. Le déplacement
 reste dans l'emprise du graphe.
