@@ -20,6 +20,10 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
   opération
 - **Lignée en évidence** : le chemin d'origine et de devenir de la parcelle (ou de l'opération) choisie est souligné, le reste du
   graphe (parcelles sœurs, autres branches) est atténué
+- **Localiser toute la filiation sur la carte** : un bouton sous la synthèse dessine en une fois les parcelles du graphe qui existent
+  encore au cadastre actuel, colorées selon leur place (parcelle cherchée, descendantes, autres parcelles liées), avec une légende dans
+  le panneau. Les parcelles disparues (divisées, réunies ou renumérotées) n'ont plus de contour : elles sont listées. Au plus 40 parcelles,
+  demandées 3 à la fois au service de l'IGN
 
 ### Modifié
 

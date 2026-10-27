@@ -5,7 +5,7 @@ import {
     checkIndex, loadIndex, loadCommune, buildLookup, describeLot, buildGraph, parcelSummary, layoutGraph,
     fitView, clampView, zoomView, viewBoxOf, lineageOf, nodeTooltip,
     DEFAULT_CADASTRE_URL, cadastreUrl, geometryBbox, expandBbox, extentForVisible, fitExtent, parseCadastre, loadParcel, formatArea,
-    communeOptions, sectionOptions, numberOptions, normalizeNumber, selectionIdu
+    communeOptions, sectionOptions, numberOptions, normalizeNumber, selectionIdu, mapTargets, mapLimit, mergeBbox
 } from '../src/js/dfi-data.js';
 
 let failures = 0;
@@ -230,6 +230,40 @@ await test('zoomView : le point visé reste fixe à l\'écran ; échelle bornée
 
 await test('viewBoxOf : zone vue à l\'échelle', () => {
     assert.equal(viewBoxOf({ cx: 100, cy: 50, scale: 2 }, 400, 200), '0 0 200 100');
+});
+
+// ── Toute la filiation sur la carte ────────────────────────────────────────────────────────────────────────────
+
+await test('mapTargets : parcelles remplacées écartées, rôles, plafond', () => {
+    const t = mapTargets(buildGraph(lookup, 'AH0264'), lookup, 40);
+    assert.deepEqual(t.gone.slice().sort(), ['AH0065', 'AH0072', 'AH0261', 'AH0264'], 'mères d\'un lot : plus au cadastre');
+    assert.deepEqual(t.query.map((q) => q.key + ':' + q.role).sort(),
+        ['AH0280:descendant', 'AH0281:descendant', 'AH0300:related']);
+    const actuelle = mapTargets(buildGraph(lookup, 'AH0280'), lookup, 40);
+    assert.equal(actuelle.query.find((q) => q.key === 'AH0280').role, 'searched');
+    const plafond = mapTargets(buildGraph(lookup, 'AH0264'), lookup, 1);
+    assert.equal(plafond.query.length, 1);
+    assert.equal(plafond.skipped.length, 2);
+    const meme = buildLookup({ insee: '38544', lots: [['0000900', '00001', 2, '2015-01-01', ['AB0001'], ['AB0001', 'AB0002']]] });
+    assert.deepEqual(mapTargets(buildGraph(meme, 'AB0001'), meme, 40).gone, [], 'mère et fille du même lot : existe toujours');
+});
+
+await test('mapLimit : ordre des résultats, erreurs gardées, pas plus de `limit` à la fois', async () => {
+    let active = 0;
+    let peak = 0;
+    const results = await mapLimit([30, 10, 20, -1, 5], 2, (ms) => new Promise((resolve, reject) => {
+        active++; peak = Math.max(peak, active);
+        setTimeout(() => { active--; ms < 0 ? reject(new Error('échec')) : resolve(ms * 2); }, Math.abs(ms));
+    }));
+    assert.equal(peak, 2);
+    assert.deepEqual(results.map((r) => r.error ? 'erreur' : r.value), [60, 20, 40, 'erreur', 10]);
+    assert.deepEqual(await mapLimit([], 3, () => Promise.resolve(1)), []);
+});
+
+await test('mergeBbox', () => {
+    assert.deepEqual(mergeBbox([{ minX: 0, minY: 1, maxX: 2, maxY: 3 }, { minX: -1, minY: 2, maxX: 1, maxY: 5 }]),
+        { minX: -1, minY: 1, maxX: 2, maxY: 5 });
+    assert.equal(mergeBbox([]), null);
 });
 
 // ── Localisation (API Carto Cadastre de l'IGN) : réponse de la forme réelle (MultiPolygon EPSG:4326) ──────────
