@@ -11,6 +11,8 @@ la plus récente publiée doit être celle de `package.json` et de `src/plugin.g
 
 ## [Non publié]
 
+## [0.4.0] — 2026-11-02
+
 ### Ajouté
 
 - **Zoom et déplacement du graphe**, comme sur une carte : molette (centrée sur le pointeur), boutons +, − et « Voir tout le
